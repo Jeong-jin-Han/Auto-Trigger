@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auto Click</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <div class="header">
+    <span class="logo">⚡ Auto Click</span>
+    <button id="refreshBtn" class="icon-btn" title="Refresh / Re-inject">↺</button>
+  </div>
+
+  <!-- Mode Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="manual">Manual</button>
+    <button class="tab" data-tab="auto">Auto Detect</button>
+  </div>
+
+  <!-- ── MANUAL MODE ── -->
+  <div id="manualPanel" class="panel active">
+    <div class="section-title">Record Click Pattern</div>
+
+    <div class="record-controls">
+      <button id="recordBtn" class="btn btn-record">⏺ Record</button>
+    </div>
+
+    <div class="click-list-header">
+      <span>Recorded Clicks</span>
+      <button id="clearBtn" class="text-btn">Clear</button>
+    </div>
+    <div id="clickList" class="click-list">
+      <div class="empty-msg">No clicks recorded yet.</div>
+    </div>
+
+    <div class="repeat-row">
+      <label for="repeatCount">Repeat</label>
+      <input id="repeatCount" type="number" min="1" max="999" value="1" />
+      <span>times</span>
+    </div>
+
+    <button id="replayBtn" class="btn btn-play" disabled>▶ Replay Pattern</button>
+  </div>
+
+  <!-- ── AUTO DETECT MODE ── -->
+  <div id="autoPanel" class="panel">
+    <div class="section-title">Video Auto Detection</div>
+    <p class="description">
+      Detects when a video ends on the current tab and automatically clicks the
+      next-video element you specify below.
+    </p>
+
+    <label class="field-label">Next-video selector (CSS)</label>
+    <input id="nextSelector" type="text" class="text-input"
+           placeholder=".ytp-next-button, [data-testid='next']" />
+
+    <div class="hint">Leave blank to use the recorded click pattern instead.</div>
+
+    <div class="auto-controls">
+      <button id="autoToggleBtn" class="btn btn-auto-start">▶ Start Auto Detect</button>
+    </div>
+
+    <div id="autoStatus" class="status-bar">Idle</div>
+    <div id="eventLog" class="event-log"></div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
