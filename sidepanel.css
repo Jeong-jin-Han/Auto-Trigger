@@ -209,8 +209,8 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 10px;
-  width: 90%;
-  max-width: 300px;
+  width: 96%;
+  max-width: 380px;
   overflow: hidden;
 }
 
@@ -312,6 +312,8 @@ body {
   border-color: var(--dev-border);
   background: var(--dev-bg);
 }
+
+
 
 .section-title {
   font-size: 11px;
