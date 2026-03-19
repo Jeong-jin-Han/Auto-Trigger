@@ -10,6 +10,7 @@ let userOverrodeTheme = false;
 const themeBtn       = document.getElementById('themeBtn');
 const soundBtn       = document.getElementById('soundBtn');
 const devBtn         = document.getElementById('devBtn');
+const reloadBtn      = document.getElementById('reloadBtn');
 const helpBtn        = document.getElementById('helpBtn');
 const helpModal      = document.getElementById('helpModal');
 const closeHelp      = document.getElementById('closeHelp');
@@ -145,6 +146,14 @@ volumeSlider.addEventListener('input', () => {
 delayInput.addEventListener('change', () => {
   const v = parseFloat(delayInput.value);
   if (isNaN(v) || v < 0) delayInput.value = 0;
+});
+
+// ── Reload (re-inject) button ─────────────────────────────────────────────────
+reloadBtn.addEventListener('click', async () => {
+  reloadBtn.style.opacity = '0.4';
+  await ensureContentScript();
+  reloadBtn.style.opacity = '';
+  addLog('Script re-injected');
 });
 
 // ── Help modal ────────────────────────────────────────────────────────────────
