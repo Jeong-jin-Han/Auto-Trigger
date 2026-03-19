@@ -32,6 +32,14 @@ const devSection     = document.getElementById('devSection');
 const eventLog       = document.getElementById('eventLog');
 const tooltipEl      = document.getElementById('tooltip');
 const devOnlyEls     = () => document.querySelectorAll('.dev-only');
+const statusDot      = document.getElementById('statusDot');
+const statusText     = document.getElementById('statusText');
+
+// ── Status display ────────────────────────────────────────────────────────────
+function setStatus(state, text) {
+  statusDot.className = `status-dot ${state}`;
+  statusText.textContent = text;
+}
 
 // ── Custom tooltips (icon-only header buttons only) ───────────────────────────
 document.addEventListener('mouseover', (e) => {
@@ -118,6 +126,13 @@ soundWrapper.addEventListener('mouseleave', scheduleHideVolumePopup);
 volumePopup.addEventListener('mouseenter', showVolumePopup);
 volumePopup.addEventListener('mouseleave', scheduleHideVolumePopup);
 
+document.addEventListener('click', (e) => {
+  if (!soundWrapper.contains(e.target)) {
+    clearTimeout(volumeHideTimer);
+    volumePopup.classList.remove('visible');
+  }
+});
+
 // ── Volume slider ─────────────────────────────────────────────────────────────
 volumeSlider.addEventListener('input', () => {
   const v = parseInt(volumeSlider.value, 10);
@@ -182,6 +197,7 @@ recordBtn.addEventListener('click', async () => {
     updateRecordBtn();
     renderClickList();
     updateActionButtons();
+    setStatus('recording', 'Recording...');
     chrome.runtime.sendMessage({ type: 'START_RECORDING' });
 
   } else if (recordState === 'recording') {
@@ -189,6 +205,7 @@ recordBtn.addEventListener('click', async () => {
     updateRecordBtn();
     renderClickList();
     updateActionButtons();
+    setStatus('ready', 'Pattern ready');
     chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
 
   } else if (recordState === 'stopped') {
@@ -196,6 +213,7 @@ recordBtn.addEventListener('click', async () => {
     updateRecordBtn();
     renderClickList();
     updateActionButtons();
+    setStatus('recording', 'Recording...');
     chrome.runtime.sendMessage({ type: 'RESUME_RECORDING' });
   }
 });
@@ -221,6 +239,7 @@ clearBtn.addEventListener('click', () => {
   updateRecordBtn();
   renderClickList();
   updateActionButtons();
+  setStatus('idle', 'Record a pattern');
   chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
 });
 
@@ -255,6 +274,7 @@ replayBtn.addEventListener('click', async () => {
   chrome.runtime.sendMessage({ type: 'REPLAY_CLICKS', pattern: recordedClicks, repeat, delayMs });
   replayBtn.disabled = true;
   replayBtn.textContent = '⏳ Running…';
+  setStatus('running', `Repeating ${repeat}x...`);
   addLog(`Replay started (${repeat}x, ${delayInput.value}s delay)`);
 });
 
@@ -274,6 +294,7 @@ autoToggleBtn.addEventListener('click', async () => {
     autoToggleBtn.className = 'btn btn-auto-stop';
     autoStatus.textContent = 'Listening for video end…';
     autoStatus.className = 'status-bar active';
+    setStatus('watching', 'Watching for video end...');
     chrome.runtime.sendMessage({ type: 'START_AUTO_DETECTION', pattern: recordedClicks });
     addLog('Auto trigger started');
   } else {
@@ -282,6 +303,7 @@ autoToggleBtn.addEventListener('click', async () => {
     autoToggleBtn.className = 'btn btn-auto-start';
     autoStatus.textContent = 'Idle';
     autoStatus.className = 'status-bar';
+    setStatus('ready', 'Pattern ready');
     chrome.runtime.sendMessage({ type: 'STOP_AUTO_DETECTION' });
     addLog('Auto trigger stopped');
   }
@@ -313,6 +335,7 @@ chrome.runtime.onMessage.addListener((message) => {
     addLog(`Click performed${counter} via ${message.method}`);
     if (message.source === 'auto') {
       showResult(autoResult, 'Triggered successfully', 'success');
+      setStatus('watching', 'Watching for video end...');
       playAlert();
     }
   }
@@ -331,6 +354,7 @@ chrome.runtime.onMessage.addListener((message) => {
     showResult(macroResult, `Replay complete — ${message.repeat} time(s)`, 'success');
     playAlert();
     replayBtn.textContent = '▶ Replay Pattern';
+    setStatus('ready', 'Pattern ready');
     updateActionButtons();
   }
 });

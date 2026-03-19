@@ -1,3 +1,4 @@
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -76,12 +77,36 @@ body {
   z-index: 100;
 }
 
-.logo {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.5px;
-  user-select: none;
+.status-display {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.status-dot.idle     { background: var(--text-dim); }
+.status-dot.ready    { background: #28a745; }
+.status-dot.recording{ background: var(--accent); animation: pulse 1s infinite; }
+.status-dot.running  { background: #ff8c00; animation: pulse 1s infinite; }
+.status-dot.watching { background: #28a745; animation: pulse 2s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+.status-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.2px;
 }
 
 .header-actions {
@@ -134,6 +159,10 @@ body {
 
 .sound-wrapper .volume-popup.visible { display: flex; }
 
+.volume-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
 .volume-pct {
   font-size: 10px;
   color: var(--text-muted);
@@ -248,6 +277,9 @@ body {
 }
 
 .help-option-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   font-weight: 700;
   color: var(--accent);
@@ -310,7 +342,9 @@ body {
 .btn-play:not(:disabled):hover { background: var(--btn-base-hover); }
 
 .btn-auto-start { background: var(--btn-base); color: var(--text); }
+.btn-auto-start:hover { background: var(--btn-base-hover); }
 .btn-auto-stop  { background: var(--accent); color: #fff; }
+.btn-auto-stop:hover  { opacity: 0.85; }
 
 .text-btn {
   background: none;
