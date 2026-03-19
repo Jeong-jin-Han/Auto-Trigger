@@ -70,7 +70,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.tabs.sendMessage(tabs[0].id, {
           type: 'REPLAY_CLICKS',
           pattern: message.pattern,
-          repeat: message.repeat
+          repeat: message.repeat,
+          delayMs: message.delayMs
         });
       }
     });

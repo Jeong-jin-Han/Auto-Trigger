@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Auto Click - Video Watcher",
+  "name": "Auto Trigger",
   "version": "1.0.0",
-  "description": "Auto-click extension for video sites with manual pattern recording and auto detection",
+  "description": "Record click patterns and auto-trigger them on any site",
   "permissions": [
     "activeTab",
     "scripting",
     "storage",
     "sidePanel",
-    "tabs"
+    "tabs",
+    "notifications"
   ],
   "host_permissions": [
     "<all_urls>"

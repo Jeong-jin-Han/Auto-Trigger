@@ -6,6 +6,7 @@ if (window.__autoClickInjected) {
 
   let isRecording = false;
   let isAutoDetecting = false;
+  let isReplaying = false;
   let recordedClicks = [];
   let videoObserver = null;
 
@@ -131,7 +132,13 @@ if (window.__autoClickInjected) {
     videos.forEach((video) => {
       if (!video.__autoClickListening) {
         video.__autoClickListening = true;
+        // Standard: fires on most sites
         video.addEventListener('ended', onVideoEnded);
+        // Fallback for YouTube: 'ended' is intercepted, detect near-end via timeupdate
+        video.addEventListener('timeupdate', () => {
+          if (!isAutoDetecting || !video.duration || video.paused) return;
+          if (video.currentTime >= video.duration - 0.5) onVideoEnded();
+        });
       }
     });
   }
@@ -141,9 +148,9 @@ if (window.__autoClickInjected) {
   function onVideoEnded() {
     if (!isAutoDetecting) return;
 
-    // Debounce: ignore if another end fired within 3 seconds
+    // Debounce: ignore if triggered again within 5 seconds
     const now = Date.now();
-    if (now - lastVideoEndedAt < 3000) return;
+    if (now - lastVideoEndedAt < 5000) return;
     lastVideoEndedAt = now;
 
     // Notify side panel (for log display only)
@@ -166,20 +173,26 @@ if (window.__autoClickInjected) {
         }
       }, 800);
     } else if (autoClickPattern.length > 0) {
-      // Replay the recorded pattern
-      setTimeout(() => replayClicks(autoClickPattern, 1), 800);
+      setTimeout(() => replayClicks(autoClickPattern, 1, 'auto'), 800);
     }
   }
 
   // ─── Replay Mode ──────────────────────────────────────────────────────────
 
-  async function replayClicks(pattern, repeat) {
+  async function replayClicks(pattern, repeat, source, delayMs) {
+    if (source !== 'auto' && isReplaying) return;
+    if (source !== 'auto') isReplaying = true;
+    const between = typeof delayMs === 'number' ? delayMs : 500;
     for (let r = 0; r < repeat; r++) {
       for (const click of pattern) {
         await waitMs(300);
-        performClick(click);
+        performClick(click, source, r + 1, repeat);
       }
-      if (r < repeat - 1) await waitMs(500);
+      if (r < repeat - 1) await waitMs(between);
+    }
+    if (source !== 'auto') {
+      isReplaying = false;
+      chrome.runtime.sendMessage({ type: 'REPLAY_DONE', repeat });
     }
   }
 
@@ -195,10 +208,9 @@ if (window.__autoClickInjected) {
     el.dispatchEvent(new MouseEvent('mousedown',  opts));
     el.dispatchEvent(new MouseEvent('mouseup',    opts));
     el.dispatchEvent(new MouseEvent('click',      opts));
-    el.click(); // belt-and-suspenders
   }
 
-  function performClick(click) {
+  function performClick(click, source, step, total) {
     let el = null;
     let method = '';
 
@@ -218,7 +230,7 @@ if (window.__autoClickInjected) {
       const cy = rect.top  + rect.height / 2;
       fireMouseClick(el, cx, cy);
       showClickBadge(cx, cy, '▶');
-      chrome.runtime.sendMessage({ type: 'CLICK_PERFORMED', method });
+      chrome.runtime.sendMessage({ type: 'CLICK_PERFORMED', method, source, step, total });
     } else {
       chrome.runtime.sendMessage({ type: 'CLICK_FAILED', selector: click.selector });
     }
@@ -269,7 +281,7 @@ if (window.__autoClickInjected) {
         break;
 
       case 'REPLAY_CLICKS':
-        replayClicks(message.pattern, message.repeat || 1);
+        replayClicks(message.pattern, message.repeat || 1, 'manual', message.delayMs);
         break;
     }
   });

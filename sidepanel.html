@@ -3,66 +3,139 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Auto Click</title>
+  <title>Auto Trigger</title>
   <link rel="stylesheet" href="sidepanel.css" />
 </head>
 <body>
+
+  <!-- ── Tooltip ── -->
+  <div id="tooltip" class="tooltip hidden"></div>
+
+  <!-- ── Help Modal ── -->
+  <div id="helpModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">How to use Auto Trigger</span>
+        <button id="closeHelp" class="icon-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="help-step">
+          <div class="help-step-num">1</div>
+          <div>
+            <div class="help-step-title">Record a click pattern</div>
+            <div class="help-step-desc">Click <b>Record</b>, perform your clicks on the page, then click <b>Stop</b>. Your clicks are saved as a reusable pattern.</div>
+          </div>
+        </div>
+        <div class="help-step">
+          <div class="help-step-num">2</div>
+          <div>
+            <div class="help-step-title">Choose how to run it</div>
+          </div>
+        </div>
+        <div class="help-option">
+          <div class="help-option-label">Macro</div>
+          <div class="help-option-desc">Replay the recorded pattern manually a set number of times. Works on any site for any repetitive action.</div>
+        </div>
+        <div class="help-option">
+          <div class="help-option-label">Auto Trigger</div>
+          <div class="help-option-desc">Automatically fires the pattern when a video ends. Keeps watching until you stop it.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ── Header ── -->
   <div class="header">
-    <span class="logo">⚡ Auto Click</span>
-    <button id="refreshBtn" class="icon-btn" title="Refresh / Re-inject">↺</button>
+    <span class="logo">Auto Trigger</span>
+    <div class="header-actions">
+      <button id="themeBtn" class="icon-btn" data-tooltip="Switch theme">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
+      <div class="sound-wrapper">
+        <button id="soundBtn" class="icon-btn sound-off">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </button>
+        <div class="volume-popup">
+          <input id="volumeSlider" type="range" min="0" max="100" value="70" class="volume-slider" />
+          <span id="volumeVal" class="volume-pct">70%</span>
+        </div>
+      </div>
+      <button id="helpBtn" class="icon-btn" data-tooltip="How to use">?</button>
+      <button id="devBtn" class="icon-btn dev-off" data-tooltip="Show dev log">DEV</button>
+    </div>
   </div>
 
-  <!-- Mode Tabs -->
-  <div class="tabs">
-    <button class="tab active" data-tab="manual">Manual</button>
-    <button class="tab" data-tab="auto">Auto Detect</button>
-  </div>
+  <div class="content">
 
-  <!-- ── MANUAL MODE ── -->
-  <div id="manualPanel" class="panel active">
-    <div class="section-title">Record Click Pattern</div>
-
-    <div class="record-controls">
-      <button id="recordBtn" class="btn btn-record">⏺ Record</button>
+    <!-- ── CARD 1: CLICK PATTERN ── -->
+    <div class="card">
+      <div class="section-title">Click Pattern</div>
+      <div class="record-row">
+        <button id="recordBtn" class="btn btn-record">⏺ Record</button>
+        <button id="clearBtn" class="icon-btn trash-btn hidden">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </button>
+      </div>
+      <div id="clickCount" class="click-count">No clicks recorded</div>
+      <div class="dev-only hidden">
+        <div class="click-list-header"><span>Recorded Clicks</span></div>
+        <div id="clickList" class="click-list">
+          <div class="empty-msg">No clicks recorded yet.</div>
+        </div>
+      </div>
     </div>
 
-    <div class="click-list-header">
-      <span>Recorded Clicks</span>
-      <button id="clearBtn" class="text-btn">Clear</button>
-    </div>
-    <div id="clickList" class="click-list">
-      <div class="empty-msg">No clicks recorded yet.</div>
-    </div>
-
-    <div class="repeat-row">
-      <label for="repeatCount">Repeat</label>
-      <input id="repeatCount" type="number" min="1" max="999" value="1" />
-      <span>times</span>
-    </div>
-
-    <button id="replayBtn" class="btn btn-play" disabled>▶ Replay Pattern</button>
-  </div>
-
-  <!-- ── AUTO DETECT MODE ── -->
-  <div id="autoPanel" class="panel">
-    <div class="section-title">Video Auto Detection</div>
-    <p class="description">
-      Detects when a video ends on the current tab and automatically clicks the
-      next-video element you specify below.
-    </p>
-
-    <label class="field-label">Next-video selector (CSS)</label>
-    <input id="nextSelector" type="text" class="text-input"
-           placeholder=".ytp-next-button, [data-testid='next']" />
-
-    <div class="hint">Leave blank to use the recorded click pattern instead.</div>
-
-    <div class="auto-controls">
-      <button id="autoToggleBtn" class="btn btn-auto-start">▶ Start Auto Detect</button>
+    <!-- ── CARD 2: MACRO ── -->
+    <div class="card">
+      <div class="section-title">Macro</div>
+      <div id="noPatternMacro" class="no-pattern-msg hidden">Record a click pattern first.</div>
+      <div class="macro-inline">
+        <div class="macro-field">
+          <label for="repeatCount">Repeat</label>
+          <input id="repeatCount" type="number" min="1" max="999" value="1" />
+          <span>times</span>
+        </div>
+        <div class="macro-divider"></div>
+        <div class="macro-field">
+          <label for="delayInput">Delay</label>
+          <input id="delayInput" type="number" min="0" step="0.1" value="2" />
+          <span>s</span>
+        </div>
+      </div>
+      <button id="replayBtn" class="btn btn-play" disabled>▶ Replay Pattern</button>
+      <div id="macroResult" class="action-result hidden"></div>
     </div>
 
-    <div id="autoStatus" class="status-bar">Idle</div>
-    <div id="eventLog" class="event-log"></div>
+    <!-- ── CARD 3: AUTO TRIGGER ── -->
+    <div class="card">
+      <div class="section-title">Auto Trigger</div>
+      <div id="noPatternAuto" class="no-pattern-msg hidden">Record a click pattern first.</div>
+      <button id="autoToggleBtn" class="btn btn-auto-start">▶ Start Auto Trigger</button>
+      <div id="autoStatus" class="status-bar dev-only hidden">Idle</div>
+      <div id="autoResult" class="action-result hidden"></div>
+    </div>
+
+    <!-- ── CARD 4: DEV LOG ── -->
+    <div id="devSection" class="card dev-card hidden">
+      <div class="section-title">Dev Log</div>
+      <div id="eventLog" class="event-log"></div>
+    </div>
+
   </div>
 
   <script src="sidepanel.js"></script>
