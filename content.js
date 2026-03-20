@@ -114,9 +114,35 @@ if (window.__autoClickInjected) {
 
   function playAlertInPage() {
     if (!autoSoundEnabled) return;
-    // Content scripts run in an isolated world — AudioContext stays suspended there.
-    // Ask background to inject the sound into the main page world via executeScript.
-    chrome.runtime.sendMessage({ type: 'PLAY_ALERT', tabId: autoClickTabId, volume: autoSoundVolume });
+    // Try AudioContext directly in the content script first — user activation is
+    // per-frame so sticky activation (from recording clicks / video playing) is shared.
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      const play = () => {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(autoSoundVolume, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.45);
+      };
+      if (ctx.state === 'running') {
+        play();
+      } else {
+        ctx.resume().then(play).catch(() => {
+          // AudioContext suspended (no activation) — fall back to offscreen via background
+          chrome.runtime.sendMessage({ type: 'PLAY_ALERT', volume: autoSoundVolume });
+        });
+      }
+    } catch (_) {
+      chrome.runtime.sendMessage({ type: 'PLAY_ALERT', volume: autoSoundVolume });
+    }
   }
 
   function startAutoDetection(selector, pattern, tabId, soundEnabled, soundVolume) {
