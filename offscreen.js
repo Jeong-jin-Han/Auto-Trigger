@@ -3,8 +3,7 @@
 // needed. The AudioContext works immediately in an extension page (no user
 // activation required).
 
-window.addEventListener('DOMContentLoaded', () => {
-  const vol = Math.min(1, Math.max(0, parseFloat(new URLSearchParams(location.search).get('vol')) || 0.7));
+function playBeep(vol) {
   try {
     const ctx = new AudioContext();
     ctx.resume().then(() => {
@@ -21,4 +20,14 @@ window.addEventListener('DOMContentLoaded', () => {
       osc.stop(ctx.currentTime + 0.45);
     });
   } catch (_) {}
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const read = (cb) => {
+    chrome.storage.session.get('_alertVolume', (r) => {
+      if (r._alertVolume != null) { cb(r._alertVolume); return; }
+      chrome.storage.local.get('_alertVolume', (r2) => cb(r2._alertVolume ?? 0.7));
+    });
+  };
+  read((vol) => playBeep(Math.min(1, Math.max(0, vol))));
 });

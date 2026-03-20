@@ -79,10 +79,14 @@ function forwardToActiveTab(payload) {
 // can play immediately on load without waiting for a message.
 async function playAlertViaOffscreen(volume) {
   const vol = Math.min(1, Math.max(0, volume));
+  // Store volume so offscreen.js can read it on load (query params not allowed in createDocument URLs)
+  await chrome.storage.session.set({ _alertVolume: vol }).catch(() =>
+    chrome.storage.local.set({ _alertVolume: vol })
+  );
   const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
   if (contexts.length > 0) await chrome.offscreen.closeDocument().catch(() => {});
   await chrome.offscreen.createDocument({
-    url: `offscreen.html?vol=${vol}`,
+    url: 'offscreen.html',
     reasons: ['AUDIO_PLAYBACK'],
     justification: 'Play alert beep when auto-trigger or replay completes'
   });
