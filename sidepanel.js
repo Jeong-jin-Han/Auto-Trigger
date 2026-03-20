@@ -652,20 +652,40 @@ chrome.runtime.sendMessage({ type: 'GET_ACTIVE_TAB' }, (res) => {
       restoreTabRecording(tabId);
       restoreTabSettings(tabId);
     }
-    // Inject content script then verify actual running state to clear stale entries
+    // Inject content script, then restore auto-detect state if needed
     ensureContentScript().then(() => {
       if (!tabId) return;
+
+      // If auto detect should be running, re-send START_AUTO_DETECTION so the
+      // (freshly re-injected) content script gets its state back after a panel
+      // close/reopen or extension reload.
+      if (autoTabs.has(tabId)) {
+        const saved = tabRecordings.get(tabId);
+        if (saved?.clicks?.length) {
+          chrome.runtime.sendMessage({
+            type: 'START_AUTO_DETECTION',
+            pattern: saved.clicks,
+            tabId,
+            soundEnabled: saved.soundEnabled ?? false,
+            soundVolume:  saved.soundVolume  ?? 0.7
+          });
+        } else {
+          autoTabs.delete(tabId);
+          setAutoTriggerUI(false);
+          updateActionButtons();
+          setStatus('idle', 'Record a pattern');
+          persistState();
+        }
+        return;
+      }
+
+      // No auto-detect to restore — verify replaying state to clear stale entries
       chrome.tabs.sendMessage(tabId, { type: 'GET_RUNNING_STATE' }, (state) => {
         if (chrome.runtime.lastError || !state) return;
         let changed = false;
         if (!state.isReplaying && replayingTabs.has(tabId)) {
           replayingTabs.delete(tabId);
           setReplayUI(false);
-          changed = true;
-        }
-        if (!state.isAutoDetecting && autoTabs.has(tabId)) {
-          autoTabs.delete(tabId);
-          setAutoTriggerUI(false);
           changed = true;
         }
         if (changed) {

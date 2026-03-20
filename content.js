@@ -142,21 +142,37 @@ if (window.__autoClickInjected) {
         osc.stop(c.currentTime + 0.45);
       } catch (_) {}
     };
+    // Try a fresh AudioContext — pages that have played video already have a
+    // user-gesture unlock, so a new context is immediately 'running'.
+    // This avoids relying on _audioCtx (may be null/stale after extension reload)
+    // or on chrome.runtime (dead if the extension was reloaded mid-session).
+    function beepViaFreshCtx() {
+      try {
+        const fresh = new (window.AudioContext || window.webkitAudioContext)();
+        if (fresh.state === 'running') {
+          beep(fresh);
+        } else {
+          fresh.resume().then(() => {
+            if (fresh.state === 'running') beep(fresh);
+            else chrome.runtime.sendMessage({ type: 'PLAY_ALERT', volume: autoSoundVolume });
+          }).catch(() => {
+            chrome.runtime.sendMessage({ type: 'PLAY_ALERT', volume: autoSoundVolume });
+          });
+        }
+      } catch (_) {
+        chrome.runtime.sendMessage({ type: 'PLAY_ALERT', volume: autoSoundVolume });
+      }
+    }
+
     if (ctx && ctx.state === 'running') {
       beep(ctx);
     } else if (ctx && ctx.state === 'suspended') {
       ctx.resume().then(() => {
-        if (ctx.state === 'running') {
-          beep(ctx);
-        } else {
-          chrome.runtime.sendMessage({ type: 'PLAY_ALERT', volume: autoSoundVolume });
-        }
-      }).catch(() => {
-        chrome.runtime.sendMessage({ type: 'PLAY_ALERT', volume: autoSoundVolume });
-      });
+        if (ctx.state === 'running') beep(ctx);
+        else beepViaFreshCtx();
+      }).catch(() => beepViaFreshCtx());
     } else {
-      // No pre-unlocked context — fall back to offscreen via background
-      chrome.runtime.sendMessage({ type: 'PLAY_ALERT', volume: autoSoundVolume });
+      beepViaFreshCtx();
     }
   }
 

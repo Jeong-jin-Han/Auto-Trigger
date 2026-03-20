@@ -104,11 +104,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'INJECT_CONTENT_SCRIPT') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
+        const tabId = tabs[0].id;
+        // Clear the injection guard so the script fully re-initializes after
+        // an extension reload (old orphaned script would otherwise block it)
         chrome.scripting.executeScript({
-          target: { tabId: tabs[0].id },
-          files: ['content.js']
-        }).then(() => sendResponse({ success: true }))
-          .catch((err) => sendResponse({ success: false, error: err.message }));
+          target: { tabId },
+          func: () => { window.__autoClickInjected = false; }
+        }).catch(() => {}).finally(() => {
+          chrome.scripting.executeScript({
+            target: { tabId },
+            files: ['content.js']
+          }).then(() => sendResponse({ success: true }))
+            .catch((err) => sendResponse({ success: false, error: err.message }));
+        });
       }
     });
     return true;
