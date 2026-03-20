@@ -27,6 +27,8 @@ Repetitive clicking is wasted time. Auto Trigger records any sequence of clicks 
 | **Auto Trigger** | Fires your pattern automatically when a video ends |
 | **YouTube support** | Works on YouTube, Shorts, and most HTML5 video sites — not livestreams |
 | **Sound alert** | Audio notification when a task completes, with volume control |
+| **Trusted clicks** | Uses Chrome DevTools Protocol to simulate real mouse input (`isTrusted: true`) |
+| **Auto reset** | Automatically resets if the page reloads or URL changes during recording |
 
 ---
 
@@ -50,6 +52,7 @@ Click **Start Auto Trigger**. The extension watches the current tab for a video 
 | Platform | Chrome Extension Manifest V3 |
 | UI | Vanilla JS + CSS (no framework, no build step) |
 | Click detection | Content script + `MutationObserver` |
+| Click replay | Chrome DevTools Protocol (`Input.dispatchMouseEvent`) |
 | Video detection | `ended` event + `timeupdate` fallback for YouTube |
 | Sound | Web Audio API (`AudioContext`) |
 | Storage | In-memory (session only) |

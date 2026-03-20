@@ -392,12 +392,28 @@ function addLog(msg) {
 
 // ── URL change during recording → reload page and reset ───────────────────────
 
-// Poll active tab URL — reload if URL changes during recording
+// Poll active tab — reset if page reloads or URL changes during recording
 let watchedUrl = null;
+let tabWasLoading = false;
 setInterval(() => {
-  if (recordState !== 'recording') return;
+  if (recordState === 'idle') return;
   chrome.runtime.sendMessage({ type: 'GET_ACTIVE_TAB' }, (res) => {
-    const url = res?.tab?.url;
+    const tab = res?.tab;
+    if (!tab) return;
+
+    // Detect page reload: tab goes loading → complete
+    if (tab.status === 'loading') { tabWasLoading = true; return; }
+    if (tabWasLoading && tab.status === 'complete') {
+      tabWasLoading = false;
+      addLog('Page reloaded — state reset');
+      resetState();
+      watchedUrl = null;
+      return;
+    }
+
+    // Detect URL change during recording
+    if (recordState !== 'recording') return;
+    const url = tab.url;
     if (!url) return;
     if (watchedUrl === null) { watchedUrl = url; return; }
     if (url !== watchedUrl) {
