@@ -36,13 +36,14 @@ Repetitive clicking is wasted time. Auto Trigger records any sequence of clicks 
 
 | | |
 |---|---|
-| **Macro** | Repeat your recorded pattern N times with a configurable delay |
-| **Auto Trigger** | Fires your pattern automatically when a video ends |
+| **Macro** | Repeat your recorded pattern N times with a configurable delay between repeats |
+| **Auto Trigger** | Fires your pattern automatically when a video ends — works even with the panel closed |
+| **Single-tab auto detect** | Auto Trigger runs on one tab at a time; other tabs show a clear warning if you try to start a second |
 | **YouTube support** | Works on YouTube, Shorts, and most HTML5 video sites — not livestreams |
-| **Per-tab recording** | Each browser tab keeps its own independent click pattern |
+| **Per-tab recording** | Each browser tab keeps its own independent click pattern and settings |
 | **Sound alert** | Audio notification when a task completes or video ends — plays even with the panel closed |
-| **Trusted clicks** | Uses Chrome DevTools Protocol to simulate real mouse input (`isTrusted: true`) |
-| **Background operation** | Auto Trigger and Macro continue working after closing the side panel |
+| **Trusted clicks** | Uses Chrome DevTools Protocol to simulate real mouse input (`isTrusted: true`) for manual replay |
+| **Background operation** | Auto Trigger and Macro continue working after closing the side panel or switching tabs |
 | **Persistent state** | All settings survive panel close and browser restart |
 | **Auto reset** | Automatically resets if the page reloads or URL changes during recording |
 
@@ -57,7 +58,9 @@ Click **Record**, then click any elements on the page you want to automate. Clic
 Set a repeat count and delay, then click **Replay Pattern**. Your recorded sequence runs N times with the configured gap between each repeat.
 
 ### 3. Auto Trigger (video detection)
-Click **Start Auto Trigger**. The extension watches the current tab for a video to end, then automatically fires your recorded pattern. Works on YouTube, YouTube Shorts, and most HTML5 video sites. Does **not** work on livestreams or Flash-based players.
+Click **Start Auto Trigger**. The extension watches the current tab for a video to end, then automatically fires your recorded pattern — even if you switch to another tab or close the panel. Works on YouTube, YouTube Shorts, and most HTML5 video sites. Does **not** work on livestreams or Flash-based players.
+
+> **Note:** Auto Trigger runs on one tab at a time. If it is already active on another tab, the button will be locked and a warning will appear when clicked.
 
 ---
 

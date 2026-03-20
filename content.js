@@ -150,25 +150,27 @@ if (window.__autoClickInjected) {
       if (!video.__autoClickListening) {
         video.__autoClickListening = true;
         // Standard: fires on most sites
-        video.addEventListener('ended', onVideoEnded);
-        // Fallback for YouTube: 'ended' is intercepted, detect near-end via timeupdate
+        video.addEventListener('ended', () => onVideoEnded(video));
+        // Fallback for YouTube: 'ended' is intercepted by the player; detect via timeupdate.
+        // Also reset the fired flag when currentTime is near 0 — this is the only reliable
+        // signal that a new video started in YouTube's MSE player, which reuses the same
+        // <video> element and never fires 'emptied', 'durationchange', or 'play' cleanly.
         video.addEventListener('timeupdate', () => {
-          if (!isAutoDetecting || !video.duration || video.paused) return;
-          if (video.currentTime >= video.duration - 0.5) onVideoEnded();
+          if (!isAutoDetecting || !video.duration) return;
+          if (video.currentTime < 2) video.__autoClickFired = false;
+          if (!video.paused && video.currentTime >= video.duration - 0.3) onVideoEnded(video);
         });
       }
     });
   }
 
-  let lastVideoEndedAt = 0;
-
-  function onVideoEnded() {
+  function onVideoEnded(video) {
     if (!isAutoDetecting) return;
 
-    // Debounce: ignore if triggered again within 5 seconds
-    const now = Date.now();
-    if (now - lastVideoEndedAt < 5000) return;
-    lastVideoEndedAt = now;
+    // Per-video-playback debounce: prevent double-fire from 'ended' + 'timeupdate'
+    // on the same video. Flag resets on 'play' so each new video fires once.
+    if (video.__autoClickFired) return;
+    video.__autoClickFired = true;
 
     // Notify side panel (for log display only)
     chrome.runtime.sendMessage({ type: 'VIDEO_ENDED', tabId: autoClickTabId });
@@ -237,33 +239,40 @@ if (window.__autoClickInjected) {
       const cx = rect.left + rect.width  / 2;
       const cy = rect.top  + rect.height / 2;
 
-      const playerEl = document.querySelector('#movie_player')
-                    || document.querySelector('.html5-video-player')
-                    || document.querySelector('video');
-      let hoverX = cx, hoverY = cy;
-      if (playerEl) {
-        const pr = playerEl.getBoundingClientRect();
-        hoverX = pr.left + pr.width  / 2;
-        hoverY = pr.top  + pr.height * 0.4;
-      }
-      // Race DEBUGGER_CLICK against a 3-second timeout.
-      // If the service worker is killed mid-click (no open extension pages to keep it alive),
-      // sendResponse is never called and the Promise would hang forever without this timeout.
-      const resp = await Promise.race([
-        new Promise((resolve) => {
-          chrome.runtime.sendMessage(
-            { type: 'DEBUGGER_CLICK', x: cx, y: cy, hoverX, hoverY, tabId: autoClickTabId },
-            resolve
-          );
-        }),
-        new Promise((resolve) => setTimeout(() => resolve({ fallback: true }), 3000))
-      ]);
-      // Fallback: debugger cancelled, timed out, or service worker unavailable
-      if (resp?.fallback) {
+      if (source === 'auto') {
+        // Auto-trigger: use direct DOM click — works in background tabs and when the
+        // service worker is inactive. Navigation buttons don't require isTrusted events.
         const opts = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy };
         el.dispatchEvent(new MouseEvent('mousedown', opts));
         el.dispatchEvent(new MouseEvent('mouseup', opts));
         el.click();
+      } else {
+        // Manual replay: use Chrome Debugger Protocol for isTrusted events.
+        // Race against a 3-second timeout in case the service worker is killed mid-click.
+        const playerEl = document.querySelector('#movie_player')
+                      || document.querySelector('.html5-video-player')
+                      || document.querySelector('video');
+        let hoverX = cx, hoverY = cy;
+        if (playerEl) {
+          const pr = playerEl.getBoundingClientRect();
+          hoverX = pr.left + pr.width  / 2;
+          hoverY = pr.top  + pr.height * 0.4;
+        }
+        const resp = await Promise.race([
+          new Promise((resolve) => {
+            chrome.runtime.sendMessage(
+              { type: 'DEBUGGER_CLICK', x: cx, y: cy, hoverX, hoverY, tabId: autoClickTabId },
+              resolve
+            );
+          }),
+          new Promise((resolve) => setTimeout(() => resolve({ fallback: true }), 3000))
+        ]);
+        if (resp?.fallback) {
+          const opts = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy };
+          el.dispatchEvent(new MouseEvent('mousedown', opts));
+          el.dispatchEvent(new MouseEvent('mouseup', opts));
+          el.click();
+        }
       }
 
       showClickBadge(cx, cy, '▶');

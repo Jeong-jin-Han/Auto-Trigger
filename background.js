@@ -2,9 +2,11 @@
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
 // ─── Chrome Debugger API ───────────────────────────────────────────────────
-// Supports multiple tabs simultaneously — each tab has its own debugger session.
 
 const debugAttachedTabs = new Set();
+
+// ─── Auto detection — single tab only ─────────────────────────────────────
+let currentAutoTabId = null;
 
 async function ensureDebuggerAttached(tabId) {
   if (debugAttachedTabs.has(tabId)) return;
@@ -48,6 +50,7 @@ function updateStorage(updater) {
 
 // Clean up all tab-specific data when a tab is closed
 chrome.tabs.onRemoved.addListener((tabId) => {
+  if (currentAutoTabId === tabId) currentAutoTabId = null;
   updateStorage((data) => {
     let changed = false;
     if (data.tabRecordings?.[tabId])         { delete data.tabRecordings[tabId]; changed = true; }
@@ -132,9 +135,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message.type === 'STOP_RECORDING')      forwardToActiveTab({ type: 'STOP_RECORDING' });
   if (message.type === 'STOP_AUTO_DETECTION') {
-    // Target the specific tab so multi-tab auto detect stops independently
-    if (message.tabId) chrome.tabs.sendMessage(message.tabId, { type: 'STOP_AUTO_DETECTION' }).catch(() => {});
-    else forwardToActiveTab({ type: 'STOP_AUTO_DETECTION' });
+    const tabId = message.tabId || currentAutoTabId;
+    if (tabId) chrome.tabs.sendMessage(tabId, { type: 'STOP_AUTO_DETECTION' }).catch(() => {});
+    if (currentAutoTabId === tabId) currentAutoTabId = null;
   }
 
   if (message.type === 'RESUME_RECORDING') {
@@ -144,6 +147,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.type === 'START_AUTO_DETECTION' && message.tabId) {
+    // Enforce single-tab: stop any currently running auto detection first
+    if (currentAutoTabId && currentAutoTabId !== message.tabId) {
+      chrome.tabs.sendMessage(currentAutoTabId, { type: 'STOP_AUTO_DETECTION' }).catch(() => {});
+      updateStorage((data) => {
+        const idx = data.autoTabs?.indexOf(currentAutoTabId) ?? -1;
+        if (idx === -1) return false;
+        data.autoTabs.splice(idx, 1);
+        return true;
+      });
+    }
+    currentAutoTabId = message.tabId;
     chrome.tabs.sendMessage(message.tabId, { type: 'START_AUTO_DETECTION', selector: message.selector, pattern: message.pattern, tabId: message.tabId, soundEnabled: message.soundEnabled, soundVolume: message.soundVolume }).catch(() => {});
   }
 

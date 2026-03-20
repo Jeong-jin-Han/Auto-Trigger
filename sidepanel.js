@@ -30,8 +30,9 @@ const delayInput     = document.getElementById('delayInput');
 const replayBtn      = document.getElementById('replayBtn');
 const noPatternMacro = document.getElementById('noPatternMacro');
 const macroResult    = document.getElementById('macroResult');
-const autoToggleBtn  = document.getElementById('autoToggleBtn');
-const noPatternAuto  = document.getElementById('noPatternAuto');
+const autoToggleBtn     = document.getElementById('autoToggleBtn');
+const noPatternAuto     = document.getElementById('noPatternAuto');
+const autoElsewhereMsg  = document.getElementById('autoElsewhereMsg');
 const autoStatus     = document.getElementById('autoStatus');
 const autoResult     = document.getElementById('autoResult');
 const devSection     = document.getElementById('devSection');
@@ -282,12 +283,16 @@ function showResult(el, msg, type) {
 
 // ── Sync action buttons ───────────────────────────────────────────────────────
 function updateActionButtons() {
-  const blocked      = recordState === 'recording';
-  const noClicks     = recordedClicks.length === 0;
-  const tabReplaying = replayingTabs.has(viewedTabId);
-  const autoRunning  = autoTabs.has(viewedTabId);    // single source of truth
+  const blocked              = recordState === 'recording';
+  const noClicks             = recordedClicks.length === 0;
+  const tabReplaying         = replayingTabs.has(viewedTabId);
+  const autoRunning          = autoTabs.has(viewedTabId);
+  const autoRunningElsewhere = autoTabs.size > 0 && !autoRunning;
   replayBtn.disabled     = noClicks || blocked || tabReplaying;
-  autoToggleBtn.disabled = !autoRunning && (noClicks || blocked);
+  // Disable button normally OR visually-only when another tab owns auto detect
+  // When another tab owns auto detect, keep button clickable (so warning fires) but styled as locked
+  autoToggleBtn.disabled = !autoRunningElsewhere && (!autoRunning && (noClicks || blocked));
+  autoToggleBtn.classList.toggle('btn-locked', autoRunningElsewhere);
 }
 
 // ── Record button ─────────────────────────────────────────────────────────────
@@ -405,6 +410,12 @@ replayBtn.addEventListener('click', async () => {
 
 // ── Auto trigger toggle ───────────────────────────────────────────────────────
 autoToggleBtn.addEventListener('click', async () => {
+  // Another tab already owns auto detect — show warning instead
+  if (autoTabs.size > 0 && !autoTabs.has(viewedTabId)) {
+    autoElsewhereMsg.classList.remove('hidden');
+    setTimeout(() => autoElsewhereMsg.classList.add('hidden'), 3000);
+    return;
+  }
   const autoRunning = autoTabs.has(viewedTabId);
   if (!autoRunning && recordedClicks.length === 0) {
     noPatternAuto.classList.remove('hidden');
@@ -421,6 +432,8 @@ autoToggleBtn.addEventListener('click', async () => {
       const tabId = res?.tab?.id;
       if (!tabId) return;
       activeTabId = tabId;
+      // Enforce single-tab: clear any other auto-detecting tabs from local state
+      autoTabs.forEach(existingId => { if (existingId !== tabId) autoTabs.delete(existingId); });
       autoTabs.add(tabId);
       persistState();
       chrome.runtime.sendMessage({ type: 'START_AUTO_DETECTION', pattern: recordedClicks, tabId, soundEnabled, soundVolume });

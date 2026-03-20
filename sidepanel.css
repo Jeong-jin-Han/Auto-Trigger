@@ -378,6 +378,7 @@ body.dev-active .cards-main {
 .btn-auto-start:hover { background: var(--btn-base-hover); }
 .btn-auto-stop  { background: var(--accent); color: #fff; }
 .btn-auto-stop:hover  { opacity: 0.85; }
+.btn-locked     { opacity: 0.45; cursor: not-allowed; }
 
 .text-btn {
   background: none;
