@@ -2,17 +2,14 @@
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
 // ─── Chrome Debugger API ───────────────────────────────────────────────────
+// Supports multiple tabs simultaneously — each tab has its own debugger session.
 
-let debugTabId = null;
+const debugAttachedTabs = new Set();
 
 async function ensureDebuggerAttached(tabId) {
-  if (debugTabId === tabId) return;
-  if (debugTabId !== null) {
-    await chrome.debugger.detach({ tabId: debugTabId }).catch(() => {});
-    debugTabId = null;
-  }
+  if (debugAttachedTabs.has(tabId)) return;
   await chrome.debugger.attach({ tabId }, '1.3');
-  debugTabId = tabId;
+  debugAttachedTabs.add(tabId);
 }
 
 async function debuggerClick(tabId, x, y, hoverX, hoverY) {
@@ -22,7 +19,7 @@ async function debuggerClick(tabId, x, y, hoverX, hoverY) {
   await chrome.debugger.sendCommand({ tabId }, 'Input.dispatchMouseEvent', {
     type: 'mouseMoved', x: hoverX, y: hoverY, button: 'none', clickCount: 0
   });
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 150));
   // Click directly at target coordinates without moving there first
   await chrome.debugger.sendCommand({ tabId }, 'Input.dispatchMouseEvent', {
     type: 'mousePressed', x, y, button: 'left', clickCount: 1
@@ -34,7 +31,7 @@ async function debuggerClick(tabId, x, y, hoverX, hoverY) {
 
 // Detach debugger when tab navigates (prevents stale attachment)
 chrome.debugger.onDetach.addListener((source) => {
-  if (source.tabId === debugTabId) debugTabId = null;
+  debugAttachedTabs.delete(source.tabId);
 });
 
 
@@ -133,8 +130,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     });
   }
 
-  if (message.type === 'STOP_RECORDING')       forwardToActiveTab({ type: 'STOP_RECORDING' });
-  if (message.type === 'STOP_AUTO_DETECTION')  forwardToActiveTab({ type: 'STOP_AUTO_DETECTION' });
+  if (message.type === 'STOP_RECORDING')      forwardToActiveTab({ type: 'STOP_RECORDING' });
+  if (message.type === 'STOP_AUTO_DETECTION') {
+    // Target the specific tab so multi-tab auto detect stops independently
+    if (message.tabId) chrome.tabs.sendMessage(message.tabId, { type: 'STOP_AUTO_DETECTION' }).catch(() => {});
+    else forwardToActiveTab({ type: 'STOP_AUTO_DETECTION' });
+  }
 
   if (message.type === 'RESUME_RECORDING') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -142,12 +143,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     });
   }
 
-  if (message.type === 'START_AUTO_DETECTION') {
-    forwardToActiveTab({ type: 'START_AUTO_DETECTION', selector: message.selector, pattern: message.pattern, tabId: message.tabId, soundEnabled: message.soundEnabled, soundVolume: message.soundVolume });
+  if (message.type === 'START_AUTO_DETECTION' && message.tabId) {
+    chrome.tabs.sendMessage(message.tabId, { type: 'START_AUTO_DETECTION', selector: message.selector, pattern: message.pattern, tabId: message.tabId, soundEnabled: message.soundEnabled, soundVolume: message.soundVolume }).catch(() => {});
   }
 
-  if (message.type === 'REPLAY_CLICKS') {
-    forwardToActiveTab({ type: 'REPLAY_CLICKS', pattern: message.pattern, repeat: message.repeat, delayMs: message.delayMs, tabId: message.tabId, soundEnabled: message.soundEnabled, soundVolume: message.soundVolume });
+  if (message.type === 'REPLAY_CLICKS' && message.tabId) {
+    chrome.tabs.sendMessage(message.tabId, { type: 'REPLAY_CLICKS', pattern: message.pattern, repeat: message.repeat, delayMs: message.delayMs, tabId: message.tabId, soundEnabled: message.soundEnabled, soundVolume: message.soundVolume }).catch(() => {});
   }
 
   if (message.type === 'DEBUGGER_CLICK') {
@@ -167,9 +168,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.type === 'DEBUGGER_DETACH') {
-    if (debugTabId !== null) {
-      chrome.debugger.detach({ tabId: debugTabId }).catch(() => {});
-      debugTabId = null;
+    const tabId = message.tabId;
+    if (tabId && debugAttachedTabs.has(tabId)) {
+      chrome.debugger.detach({ tabId }).catch(() => {});
+      debugAttachedTabs.delete(tabId);
     }
   }
 

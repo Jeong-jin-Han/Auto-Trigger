@@ -431,7 +431,7 @@ autoToggleBtn.addEventListener('click', async () => {
     persistState();
     setAutoTriggerUI(false);
     setStatus('ready', 'Pattern ready');
-    chrome.runtime.sendMessage({ type: 'STOP_AUTO_DETECTION' });
+    chrome.runtime.sendMessage({ type: 'STOP_AUTO_DETECTION', tabId: viewedTabId });
     addLog('Auto trigger stopped');
   }
 });

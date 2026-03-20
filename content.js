@@ -186,9 +186,9 @@ if (window.__autoClickInjected) {
         } else {
           chrome.runtime.sendMessage({ type: 'CLICK_FAILED', selector: autoClickSelector });
         }
-      }, 800);
+      }, 300);
     } else if (autoClickPattern.length > 0) {
-      setTimeout(() => replayClicks(autoClickPattern, 1, 'auto'), 800);
+      setTimeout(() => replayClicks(autoClickPattern, 1, 'auto'), 300);
     }
   }
 
@@ -201,7 +201,7 @@ if (window.__autoClickInjected) {
     for (let r = 0; r < repeat; r++) {
       for (let i = 0; i < pattern.length; i++) {
         if (i === 0) {
-          await waitMs(300);
+          await waitMs(100);
         } else {
           const interval = pattern[i].timestamp - pattern[i - 1].timestamp;
           await waitMs(Math.min(Math.max(interval, 100), 10000));
@@ -212,7 +212,7 @@ if (window.__autoClickInjected) {
     }
     if (source !== 'auto') {
       isReplaying = false;
-      chrome.runtime.sendMessage({ type: 'DEBUGGER_DETACH' });
+      chrome.runtime.sendMessage({ type: 'DEBUGGER_DETACH', tabId: autoClickTabId });
       chrome.runtime.sendMessage({ type: 'REPLAY_DONE', repeat, tabId: autoClickTabId });
       playAlertInPage();
     }
