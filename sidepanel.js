@@ -423,7 +423,7 @@ autoToggleBtn.addEventListener('click', async () => {
       activeTabId = tabId;
       autoTabs.add(tabId);
       persistState();
-      chrome.runtime.sendMessage({ type: 'START_AUTO_DETECTION', pattern: recordedClicks, tabId });
+      chrome.runtime.sendMessage({ type: 'START_AUTO_DETECTION', pattern: recordedClicks, tabId, soundEnabled, soundVolume });
     });
     addLog('Auto trigger started');
   } else {

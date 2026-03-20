@@ -109,11 +109,34 @@ if (window.__autoClickInjected) {
   let autoClickSelector = '';
   let autoClickPattern  = [];
   let autoClickTabId    = null;
+  let autoSoundEnabled  = false;
+  let autoSoundVolume   = 0.7;
 
-  function startAutoDetection(selector, pattern, tabId) {
+  function playAlertInPage() {
+    if (!autoSoundEnabled) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(autoSoundVolume, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (_) {}
+  }
+
+  function startAutoDetection(selector, pattern, tabId, soundEnabled, soundVolume) {
     autoClickSelector = selector || '';
     autoClickPattern  = pattern  || [];
     autoClickTabId    = tabId    || null;
+    autoSoundEnabled  = soundEnabled ?? false;
+    autoSoundVolume   = soundVolume  ?? 0.7;
     isAutoDetecting = true;
     attachVideoListeners();
     // Also watch for dynamically added videos (throttled to avoid scanning on every DOM change)
@@ -161,6 +184,9 @@ if (window.__autoClickInjected) {
 
     // Notify side panel (for log display only)
     chrome.runtime.sendMessage({ type: 'VIDEO_ENDED', tabId: autoClickTabId });
+
+    // Play sound directly in the page — works even when the panel is closed
+    playAlertInPage();
 
     // Perform the click right here in the page
     if (autoClickSelector) {
@@ -291,7 +317,7 @@ if (window.__autoClickInjected) {
         break;
 
       case 'START_AUTO_DETECTION':
-        startAutoDetection(message.selector, message.pattern, message.tabId);
+        startAutoDetection(message.selector, message.pattern, message.tabId, message.soundEnabled, message.soundVolume);
         break;
 
       case 'STOP_AUTO_DETECTION':

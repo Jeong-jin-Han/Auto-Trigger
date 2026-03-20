@@ -110,7 +110,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.type === 'START_AUTO_DETECTION') {
-    forwardToActiveTab({ type: 'START_AUTO_DETECTION', selector: message.selector, pattern: message.pattern, tabId: message.tabId });
+    forwardToActiveTab({ type: 'START_AUTO_DETECTION', selector: message.selector, pattern: message.pattern, tabId: message.tabId, soundEnabled: message.soundEnabled, soundVolume: message.soundVolume });
   }
 
   if (message.type === 'REPLAY_CLICKS') {
