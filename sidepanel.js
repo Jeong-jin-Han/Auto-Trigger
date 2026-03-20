@@ -410,10 +410,19 @@ replayBtn.addEventListener('click', async () => {
 
 // ── Auto trigger toggle ───────────────────────────────────────────────────────
 autoToggleBtn.addEventListener('click', async () => {
-  // Another tab already owns auto detect — show warning instead
+  // Another tab already owns auto detect — show warning with tab info
   if (autoTabs.size > 0 && !autoTabs.has(viewedTabId)) {
-    autoElsewhereMsg.classList.remove('hidden');
-    setTimeout(() => autoElsewhereMsg.classList.add('hidden'), 3000);
+    const runningTabId = [...autoTabs][0];
+    chrome.tabs.get(runningTabId, (tab) => {
+      const title = !chrome.runtime.lastError && tab
+        ? (tab.title || tab.url || 'Another tab')
+        : 'Another tab';
+      autoElsewhereMsg.innerHTML =
+        `⚠ Auto Trigger is already running on another tab.<br><span class="tab-link" data-tabid="${runningTabId}">${title.replace(/</g,'&lt;')}</span>`;
+      autoElsewhereMsg.classList.remove('hidden');
+      clearTimeout(autoElsewhereMsg._hideTimer);
+      autoElsewhereMsg._hideTimer = setTimeout(() => autoElsewhereMsg.classList.add('hidden'), 4000);
+    });
     return;
   }
   const autoRunning = autoTabs.has(viewedTabId);
@@ -447,6 +456,15 @@ autoToggleBtn.addEventListener('click', async () => {
     chrome.runtime.sendMessage({ type: 'STOP_AUTO_DETECTION', tabId: viewedTabId });
     addLog('Auto trigger stopped');
   }
+});
+
+autoElsewhereMsg.addEventListener('click', (e) => {
+  const link = e.target.closest('.tab-link');
+  if (!link) return;
+  const tabId = parseInt(link.dataset.tabid, 10);
+  if (tabId) chrome.tabs.update(tabId, { active: true }, (tab) => {
+    if (tab) chrome.windows.update(tab.windowId, { focused: true });
+  });
 });
 
 // ── Incoming messages ─────────────────────────────────────────────────────────
@@ -659,6 +677,30 @@ chrome.runtime.sendMessage({ type: 'GET_ACTIVE_TAB' }, (res) => {
       });
     });
   });
+});
+
+// ── Storage change listener — keep lock state fresh across all panels ─────────
+// Whenever any panel writes autoTriggerState, every open panel reloads
+// autoTabs + replayingTabs from the new value, discarding any stale data.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local' || !changes.autoTriggerState) return;
+  const data = changes.autoTriggerState.newValue;
+  if (!data) return;
+
+  const freshAuto      = new Set((data.autoTabs      || []).map(Number));
+  const freshReplaying = new Set((data.replayingTabs || []).map(Number));
+  autoTabs.clear();      freshAuto.forEach(id => autoTabs.add(id));
+  replayingTabs.clear(); freshReplaying.forEach(id => replayingTabs.add(id));
+
+  // Hide stale "elsewhere" warning if the lock was released
+  if (autoTabs.size === 0 || autoTabs.has(viewedTabId)) {
+    clearTimeout(autoElsewhereMsg._hideTimer);
+    autoElsewhereMsg.classList.add('hidden');
+  }
+
+  setAutoTriggerUI(autoTabs.has(viewedTabId));
+  setReplayUI(replayingTabs.has(viewedTabId));
+  updateActionButtons();
 });
 
 // Release auto-detect and replay locks when their tab is closed

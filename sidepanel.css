@@ -572,6 +572,14 @@ body.dev-active .cards-main {
 
 
 /* ── No pattern message ── */
+.no-pattern-msg .tab-link {
+  display: block;
+  margin-top: 4px;
+  text-decoration: underline;
+  cursor: pointer;
+  word-break: break-all;
+}
+
 .no-pattern-msg {
   font-size: 11px;
   color: var(--warn-fg);
