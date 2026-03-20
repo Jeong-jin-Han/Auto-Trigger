@@ -1,13 +1,9 @@
 // Offscreen document — plays a synthesized beep via Web Audio API.
-// Protocol:
-//   1. This script sends OFFSCREEN_READY immediately on load.
-//   2. Background responds with PLAY_BEEP { volume } to trigger the sound.
+// Volume is written to chrome.storage.local by the background before this
+// document is created, so it is always available when this script runs.
 
-chrome.runtime.sendMessage({ type: 'OFFSCREEN_READY' });
-
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.type !== 'PLAY_BEEP') return;
-  const vol = Math.min(1, Math.max(0, message.volume ?? 0.7));
+chrome.storage.local.get('_alertVolume', (result) => {
+  const vol = Math.min(1, Math.max(0, result._alertVolume ?? 0.7));
   try {
     const ctx  = new AudioContext();
     ctx.resume().then(() => {
