@@ -606,13 +606,22 @@ function loadPersistedState(callback) {
         tabSettings.set(Number(k), v);
       }
     }
-    if (data?.replayingTabs) data.replayingTabs.forEach(id => replayingTabs.add(Number(id)));
-    if (data?.autoTabs)      data.autoTabs.forEach(id => autoTabs.add(Number(id)));
     if (data?.userOverrodeTheme) {
       userOverrodeTheme = true;
       applyTheme(!!data.isLightTheme);
     }
-    callback();
+    // Verify autoTabs/replayingTabs against actually-existing tabs to clear
+    // stale entries left by tabs that closed while the service worker was asleep.
+    const storedAuto     = (data?.autoTabs      || []).map(Number);
+    const storedReplaying = (data?.replayingTabs || []).map(Number);
+    const allIds = [...new Set([...storedAuto, ...storedReplaying])];
+    if (allIds.length === 0) { callback(); return; }
+    chrome.tabs.query({}, (tabs) => {
+      const existing = new Set(tabs.map(t => t.id));
+      storedAuto.forEach(id      => { if (existing.has(id)) autoTabs.add(id); });
+      storedReplaying.forEach(id => { if (existing.has(id)) replayingTabs.add(id); });
+      callback();
+    });
   });
 }
 
@@ -650,4 +659,15 @@ chrome.runtime.sendMessage({ type: 'GET_ACTIVE_TAB' }, (res) => {
       });
     });
   });
+});
+
+// Release auto-detect and replay locks when their tab is closed
+chrome.tabs.onRemoved.addListener((tabId) => {
+  let changed = false;
+  if (autoTabs.has(tabId))      { autoTabs.delete(tabId);      changed = true; }
+  if (replayingTabs.has(tabId)) { replayingTabs.delete(tabId); changed = true; }
+  if (changed) {
+    persistState();
+    updateActionButtons();
+  }
 });
