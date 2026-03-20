@@ -74,22 +74,31 @@ function forwardToActiveTab(payload) {
 
 // ─── Alert sound ───────────────────────────────────────────────────────────
 
-// Play a beep via an offscreen document (extension page → no user-activation
-// needed, immune to page CSP). Volume is passed as a URL param so the doc
-// can play immediately on load without waiting for a message.
+// Offscreen document handshake:
+// 1. offscreen.js sends OFFSCREEN_READY as soon as its script loads
+// 2. background resolves the pending promise and sends PLAY_BEEP with volume
+let _offscreenReadyResolve = null;
+
 async function playAlertViaOffscreen(volume) {
   const vol = Math.min(1, Math.max(0, volume));
-  // Store volume so offscreen.js can read it on load (query params not allowed in createDocument URLs)
-  await chrome.storage.session.set({ _alertVolume: vol }).catch(() =>
-    chrome.storage.local.set({ _alertVolume: vol })
-  );
   const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
-  if (contexts.length > 0) await chrome.offscreen.closeDocument().catch(() => {});
+
+  if (contexts.length > 0) {
+    // Document already open — send directly (it's still listening)
+    chrome.runtime.sendMessage({ type: 'PLAY_BEEP', volume: vol }).catch(() => {});
+    return;
+  }
+
+  // Set up ready-listener BEFORE createDocument so we never miss the signal
+  const readyPromise = new Promise(resolve => { _offscreenReadyResolve = resolve; });
   await chrome.offscreen.createDocument({
     url: 'offscreen.html',
     reasons: ['AUDIO_PLAYBACK'],
     justification: 'Play alert beep when auto-trigger or replay completes'
   });
+  // Wait for offscreen to signal ready (2 s safety timeout)
+  await Promise.race([readyPromise, new Promise(r => setTimeout(r, 2000))]);
+  chrome.runtime.sendMessage({ type: 'PLAY_BEEP', volume: vol }).catch(() => {});
 }
 
 // ─── Message Listener ─────────────────────────────────────────────────────
@@ -188,6 +197,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       data.replayingTabs.splice(idx, 1);
       return true;
     });
+  }
+
+  if (message.type === 'OFFSCREEN_READY') {
+    if (_offscreenReadyResolve) { _offscreenReadyResolve(); _offscreenReadyResolve = null; }
   }
 
   if (message.type === 'PLAY_ALERT') {
