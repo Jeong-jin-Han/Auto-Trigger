@@ -148,12 +148,11 @@ delayInput.addEventListener('change', () => {
   if (isNaN(v) || v < 0) delayInput.value = 0;
 });
 
-// ── Reload (re-inject) button ─────────────────────────────────────────────────
-reloadBtn.addEventListener('click', async () => {
-  reloadBtn.style.opacity = '0.4';
-  await ensureContentScript();
-  reloadBtn.style.opacity = '';
-  addLog('Script re-injected');
+// ── Reload button (refresh current page + reset state) ───────────────────────
+reloadBtn.addEventListener('click', () => {
+  chrome.runtime.sendMessage({ type: 'RELOAD_TAB' });
+  resetState();
+  addLog('Page refreshed — state reset');
 });
 
 // ── Help modal ────────────────────────────────────────────────────────────────
@@ -241,15 +240,27 @@ function updateRecordBtn() {
   }
 }
 
-// ── Clear (trash) button ──────────────────────────────────────────────────────
-clearBtn.addEventListener('click', () => {
+// ── Reset state ───────────────────────────────────────────────────────────────
+function resetState() {
   recordedClicks = [];
   recordState = 'idle';
+  isAutoRunning = false;
   updateRecordBtn();
   renderClickList();
   updateActionButtons();
   setStatus('idle', 'Record a pattern');
+  autoToggleBtn.textContent = '▶ Start Auto Trigger';
+  autoToggleBtn.className = 'btn btn-auto-start';
+  autoStatus.textContent = 'Idle';
+  autoStatus.className = 'status-bar';
+  replayBtn.textContent = '▶ Replay Pattern';
+}
+
+// ── Clear (trash) button ──────────────────────────────────────────────────────
+clearBtn.addEventListener('click', () => {
   chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
+  chrome.runtime.sendMessage({ type: 'RELOAD_TAB' });
+  resetState();
 });
 
 // ── Render click list ─────────────────────────────────────────────────────────

@@ -29,22 +29,22 @@
         <div class="help-step">
           <div class="help-step-num">2</div>
           <div>
-            <div class="help-step-title">Run with Macro (manual repeat)</div>
-          </div>
-        </div>
-        <div class="help-option">
-          <div class="help-option-label">Macro</div>
-          <div class="help-option-desc">Replays your recorded pattern N times with a configurable delay between each repeat. Use this for any repetitive task on any website — form filling, button clicking, navigation, etc.</div>
-        </div>
-        <div class="help-step">
-          <div class="help-step-num">3</div>
-          <div>
             <div class="help-step-title">Run with Auto Trigger (video detection)</div>
           </div>
         </div>
         <div class="help-option">
           <div class="help-option-label">Auto Trigger</div>
           <div class="help-option-desc">Watches the current tab for a video to end, then automatically fires your recorded pattern. Works on YouTube, YouTube Shorts, and most HTML5 video sites. Does <b>not</b> work on livestreams or Flash-based players.</div>
+        </div>
+        <div class="help-step">
+          <div class="help-step-num">3</div>
+          <div>
+            <div class="help-step-title">Run with Macro (manual repeat)</div>
+          </div>
+        </div>
+        <div class="help-option">
+          <div class="help-option-label">Macro</div>
+          <div class="help-option-desc">Replays your recorded pattern N times with a configurable delay between each repeat. Use this for any repetitive task on any website — form filling, button clicking, navigation, etc.</div>
         </div>
         <div class="help-option">
           <div class="help-option-label">Tips</div>
@@ -72,6 +72,13 @@
             Sound
           </div>
           <div class="help-option-desc">Toggles the sound alert played when a task completes. Hover over the bell to reveal the volume slider.</div>
+        </div>
+        <div class="help-option">
+          <div class="help-option-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Refresh
+          </div>
+          <div class="help-option-desc">Refreshes the current page and resets the extension. Use this to cancel any ongoing operation — recorded clicks will be cleared and both buttons disabled.</div>
         </div>
         <div class="help-option">
           <div class="help-option-label">DEV</div>
@@ -115,7 +122,7 @@
           <span id="volumeVal" class="volume-pct">70%</span>
         </div>
       </div>
-      <button id="reloadBtn" class="icon-btn" data-tooltip="Re-inject script">
+      <button id="reloadBtn" class="icon-btn" data-tooltip="Refresh page">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"/>
           <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
@@ -151,7 +158,16 @@
       </div>
     </div>
 
-    <!-- ── CARD 2: MACRO ── -->
+    <!-- ── CARD 2: AUTO TRIGGER ── -->
+    <div class="card">
+      <div class="section-title">Auto Trigger</div>
+      <div id="noPatternAuto" class="no-pattern-msg hidden">Record a click pattern first.</div>
+      <button id="autoToggleBtn" class="btn btn-auto-start" disabled>▶ Start Auto Trigger</button>
+      <div id="autoStatus" class="status-bar dev-only hidden">Idle</div>
+      <div id="autoResult" class="action-result hidden"></div>
+    </div>
+
+    <!-- ── CARD 3: MACRO ── -->
     <div class="card">
       <div class="section-title">Macro</div>
       <div id="noPatternMacro" class="no-pattern-msg hidden">Record a click pattern first.</div>
@@ -170,15 +186,6 @@
       </div>
       <button id="replayBtn" class="btn btn-play" disabled>▶ Replay Pattern</button>
       <div id="macroResult" class="action-result hidden"></div>
-    </div>
-
-    <!-- ── CARD 3: AUTO TRIGGER ── -->
-    <div class="card">
-      <div class="section-title">Auto Trigger</div>
-      <div id="noPatternAuto" class="no-pattern-msg hidden">Record a click pattern first.</div>
-      <button id="autoToggleBtn" class="btn btn-auto-start" disabled>▶ Start Auto Trigger</button>
-      <div id="autoStatus" class="status-bar dev-only hidden">Idle</div>
-      <div id="autoResult" class="action-result hidden"></div>
     </div>
 
     <!-- ── CARD 4: DEV LOG ── -->

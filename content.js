@@ -33,10 +33,12 @@ if (window.__autoClickInjected) {
     showClickBadge(event.clientX, event.clientY, recordedClicks.length);
   }
 
-  // Returns true for dynamic/random class names that change per session
+  // Returns true for class names that should be excluded from selectors:
+  // random/hashed names, or state classes that change based on interaction
   function isDynamicClass(cls) {
-    // UUID segments, hex hashes, or anything with 6+ consecutive hex/digit chars
-    return /[0-9a-f]{6,}/i.test(cls) || /^\d/.test(cls);
+    return /[0-9a-f]{6,}/i.test(cls)
+        || /^\d/.test(cls)
+        || /-(active|hover|open|visible|hidden|focused|selected|expanded|collapsed|playing|paused|loading|buffering)$/.test(cls);
   }
 
   function getSelector(el) {
@@ -162,12 +164,7 @@ if (window.__autoClickInjected) {
         let el = null;
         try { el = document.querySelector(autoClickSelector); } catch (_) {}
         if (el) {
-          const rect = el.getBoundingClientRect();
-          const cx = rect.left + rect.width  / 2;
-          const cy = rect.top  + rect.height / 2;
-          fireMouseClick(el, cx, cy);
-          showClickBadge(cx, cy, '▶');
-          chrome.runtime.sendMessage({ type: 'CLICK_PERFORMED', method: 'css-selector' });
+          performClick({ selector: autoClickSelector, x: 0, y: 0 }, 'auto', 1, 1);
         } else {
           chrome.runtime.sendMessage({ type: 'CLICK_FAILED', selector: autoClickSelector });
         }
@@ -184,33 +181,25 @@ if (window.__autoClickInjected) {
     if (source !== 'auto') isReplaying = true;
     const between = typeof delayMs === 'number' ? delayMs : 500;
     for (let r = 0; r < repeat; r++) {
-      for (const click of pattern) {
-        await waitMs(300);
-        performClick(click, source, r + 1, repeat);
+      for (let i = 0; i < pattern.length; i++) {
+        if (i === 0) {
+          await waitMs(300);
+        } else {
+          const interval = pattern[i].timestamp - pattern[i - 1].timestamp;
+          await waitMs(Math.min(Math.max(interval, 100), 10000));
+        }
+        await performClick(pattern[i], source, r + 1, repeat);
       }
       if (r < repeat - 1) await waitMs(between);
     }
     if (source !== 'auto') {
       isReplaying = false;
+      chrome.runtime.sendMessage({ type: 'DEBUGGER_DETACH' });
       chrome.runtime.sendMessage({ type: 'REPLAY_DONE', repeat });
     }
   }
 
-  function fireMouseClick(el, clientX, clientY) {
-    const opts = {
-      bubbles: true,
-      cancelable: true,
-      view: window,
-      clientX,
-      clientY
-    };
-    el.dispatchEvent(new MouseEvent('mouseover',  opts));
-    el.dispatchEvent(new MouseEvent('mousedown',  opts));
-    el.dispatchEvent(new MouseEvent('mouseup',    opts));
-    el.dispatchEvent(new MouseEvent('click',      opts));
-  }
-
-  function performClick(click, source, step, total) {
+  async function performClick(click, source, step, total) {
     let el = null;
     let method = '';
 
@@ -228,7 +217,23 @@ if (window.__autoClickInjected) {
       const rect = el.getBoundingClientRect();
       const cx = rect.left + rect.width  / 2;
       const cy = rect.top  + rect.height / 2;
-      fireMouseClick(el, cx, cy);
+
+      const playerEl = document.querySelector('#movie_player')
+                    || document.querySelector('.html5-video-player')
+                    || document.querySelector('video');
+      let hoverX = cx, hoverY = cy;
+      if (playerEl) {
+        const pr = playerEl.getBoundingClientRect();
+        hoverX = pr.left + pr.width  / 2;
+        hoverY = pr.top  + pr.height * 0.4;
+      }
+      await new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          { type: 'DEBUGGER_CLICK', x: cx, y: cy, hoverX, hoverY },
+          resolve
+        );
+      });
+
       showClickBadge(cx, cy, '▶');
       chrome.runtime.sendMessage({ type: 'CLICK_PERFORMED', method, source, step, total });
     } else {
