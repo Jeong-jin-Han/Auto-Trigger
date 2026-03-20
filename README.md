@@ -84,7 +84,7 @@ To run locally:
 | Click detection | Content script + `MutationObserver` |
 | Click replay | Chrome DevTools Protocol (`Input.dispatchMouseEvent`) |
 | Video detection | `ended` event + `timeupdate` fallback for YouTube |
-| Sound | Offscreen document + `HTMLAudioElement` (plays even when panel is closed) |
+| Sound | Offscreen document + Web Audio API synthesis (plays even when panel is closed) |
 | Storage | `chrome.storage.local` (persists across panel close/reopen) |
 
 ---

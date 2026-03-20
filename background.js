@@ -72,34 +72,20 @@ function forwardToActiveTab(payload) {
   });
 }
 
-// ─── Offscreen document ────────────────────────────────────────────────────
+// ─── Alert sound ───────────────────────────────────────────────────────────
 
-// Plays beep.wav via an offscreen document (has DOM; immune to autoplay restrictions).
-// Uses BroadcastChannel instead of chrome.runtime.sendMessage to avoid
-// known message-routing gaps between service workers and offscreen documents.
-
-let _offscreenCreating = null;
-
+// Play a beep via an offscreen document (extension page → no user-activation
+// needed, immune to page CSP). Volume is passed as a URL param so the doc
+// can play immediately on load without waiting for a message.
 async function playAlertViaOffscreen(volume) {
-  console.log('[AutoTrigger] playAlertViaOffscreen, volume:', volume);
-  if (_offscreenCreating) {
-    await _offscreenCreating;
-  } else {
-    _offscreenCreating = chrome.offscreen.createDocument({
-      url: 'offscreen.html',
-      reasons: ['AUDIO_PLAYBACK'],
-      justification: 'Play beep alert when a watched video ends'
-    }).catch((e) => {
-      // "Only a single offscreen document" = already exists — that's fine
-      if (!e.message?.includes('single')) console.error('[AutoTrigger] offscreen create failed:', e);
-    }).finally(() => { _offscreenCreating = null; });
-    await _offscreenCreating;
-  }
-  // BroadcastChannel works reliably between service worker and offscreen document
-  const bc = new BroadcastChannel('auto_trigger_audio');
-  bc.postMessage({ volume });
-  bc.close();
-  console.log('[AutoTrigger] BroadcastChannel message sent');
+  const vol = Math.min(1, Math.max(0, volume));
+  const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
+  if (contexts.length > 0) await chrome.offscreen.closeDocument().catch(() => {});
+  await chrome.offscreen.createDocument({
+    url: `offscreen.html?vol=${vol}`,
+    reasons: ['AUDIO_PLAYBACK'],
+    justification: 'Play alert beep when auto-trigger or replay completes'
+  });
 }
 
 // ─── Message Listener ─────────────────────────────────────────────────────
@@ -200,10 +186,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     });
   }
 
-  // Play alert via offscreen document (has DOM, immune to page CSP and autoplay restrictions)
   if (message.type === 'PLAY_ALERT') {
-    console.log('[AutoTrigger] PLAY_ALERT received from content script');
-    playAlertViaOffscreen(message.volume ?? 0.7).catch((e) => console.error('[AutoTrigger] playAlert error:', e));
+    playAlertViaOffscreen(message.volume ?? 0.7).catch(() => {});
   }
 
   // CLICK_RECORDED, CLICK_PERFORMED, CLICK_FAILED are sent directly from the
