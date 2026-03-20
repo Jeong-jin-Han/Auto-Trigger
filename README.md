@@ -22,12 +22,12 @@ Repetitive clicking is wasted time. Auto Trigger records any sequence of clicks 
 ## Screenshots
 
 <p align="center">
-  <img src="tmp/images/store/screenshot2.png" width="48%" />
-  <img src="tmp/images/store/screenshot3.png" width="48%" />
+  <img src="images/screenshot2.png" width="48%" />
+  <img src="images/screenshot3.png" width="48%" />
 </p>
 <p align="center">
-  <img src="tmp/images/store/screenshot4.png" width="48%" />
-  <img src="tmp/images/store/screenshot5.png" width="48%" />
+  <img src="images/screenshot4.png" width="48%" />
+  <img src="images/screenshot5.png" width="48%" />
 </p>
 
 ---
