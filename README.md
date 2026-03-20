@@ -38,12 +38,12 @@ Repetitive clicking is wasted time. Auto Trigger records any sequence of clicks 
 |---|---|
 | **Macro** | Repeat your recorded pattern N times with a configurable delay between repeats |
 | **Auto Trigger** | Fires your pattern automatically when a video ends — works even with the panel closed |
-| **Single-tab auto detect** | Auto Trigger runs on one tab at a time; other tabs show a clear warning if you try to start a second |
+| **Single-tab auto detect** | Auto Trigger runs on one tab at a time; if already active elsewhere, a warning shows the running tab's title — click it to jump directly to that tab |
 | **YouTube support** | Works on YouTube, Shorts, and most HTML5 video sites — not livestreams |
 | **Per-tab recording** | Each browser tab keeps its own independent click pattern and settings |
 | **Sound alert** | Audio notification when a task completes or video ends — plays even with the panel closed |
 | **Trusted clicks** | Uses Chrome DevTools Protocol to simulate real mouse input (`isTrusted: true`) for manual replay |
-| **Background operation** | Auto Trigger and Macro continue working after closing the side panel or switching tabs |
+| **Background operation** | Auto Trigger and Macro continue working after closing the side panel or switching tabs; Auto Trigger state is automatically restored when the panel is reopened |
 | **Persistent state** | All settings survive panel close and browser restart |
 | **Auto reset** | Automatically resets if the page reloads or URL changes during recording |
 
@@ -60,7 +60,7 @@ Set a repeat count and delay, then click **Replay Pattern**. Your recorded seque
 ### 3. Auto Trigger (video detection)
 Click **Start Auto Trigger**. The extension watches the current tab for a video to end, then automatically fires your recorded pattern — even if you switch to another tab or close the panel. Works on YouTube, YouTube Shorts, and most HTML5 video sites. Does **not** work on livestreams or Flash-based players.
 
-> **Note:** Auto Trigger runs on one tab at a time. If it is already active on another tab, the button will be locked and a warning will appear when clicked.
+> **Note:** Auto Trigger runs on one tab at a time. If it is already active on another tab, a warning shows the running tab's title — click it to navigate there directly.
 
 ---
 
