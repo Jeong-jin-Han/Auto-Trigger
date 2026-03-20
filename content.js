@@ -10,10 +10,22 @@ if (window.__autoClickInjected) {
   let recordedClicks = [];
   let videoObserver = null;
 
+  // ─── Persistent AudioContext (unlocked on first user click during recording) ─
+  let _audioCtx = null;
+  function _unlockAudio() {
+    try {
+      if (!_audioCtx || _audioCtx.state === 'closed') {
+        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(() => {});
+    } catch (_) {}
+  }
+
   // ─── Recording Mode ───────────────────────────────────────────────────────
 
   function onClickRecord(event) {
     if (!isRecording) return;
+    _unlockAudio(); // unlock while a real user gesture is in flight
 
     const el = event.target;
     const rect = el.getBoundingClientRect();
@@ -114,33 +126,36 @@ if (window.__autoClickInjected) {
 
   function playAlertInPage() {
     if (!autoSoundEnabled) return;
-    // Try AudioContext directly in the content script first — user activation is
-    // per-frame so sticky activation (from recording clicks / video playing) is shared.
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      const ctx = new AudioCtx();
-      const play = () => {
-        const osc  = ctx.createOscillator();
-        const gain = ctx.createGain();
+    const ctx = _audioCtx;
+    const beep = (c) => {
+      try {
+        const osc  = c.createOscillator();
+        const gain = c.createGain();
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(c.destination);
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(autoSoundVolume, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.45);
-      };
-      if (ctx.state === 'running') {
-        play();
-      } else {
-        ctx.resume().then(play).catch(() => {
-          // AudioContext suspended (no activation) — fall back to offscreen via background
+        osc.frequency.setValueAtTime(880, c.currentTime);
+        osc.frequency.setValueAtTime(660, c.currentTime + 0.15);
+        gain.gain.setValueAtTime(autoSoundVolume, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.45);
+        osc.start(c.currentTime);
+        osc.stop(c.currentTime + 0.45);
+      } catch (_) {}
+    };
+    if (ctx && ctx.state === 'running') {
+      beep(ctx);
+    } else if (ctx && ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        if (ctx.state === 'running') {
+          beep(ctx);
+        } else {
           chrome.runtime.sendMessage({ type: 'PLAY_ALERT', volume: autoSoundVolume });
-        });
-      }
-    } catch (_) {
+        }
+      }).catch(() => {
+        chrome.runtime.sendMessage({ type: 'PLAY_ALERT', volume: autoSoundVolume });
+      });
+    } else {
+      // No pre-unlocked context — fall back to offscreen via background
       chrome.runtime.sendMessage({ type: 'PLAY_ALERT', volume: autoSoundVolume });
     }
   }
