@@ -210,7 +210,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 10px;
   width: 96%;
-  max-width: 380px;
+  max-width: 500px;
   overflow: hidden;
 }
 
@@ -265,7 +265,7 @@ body {
 
 .help-step-desc {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text);
   line-height: 1.5;
 }
 
@@ -288,8 +288,26 @@ body {
 
 .help-option-desc {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text);
   line-height: 1.5;
+}
+
+.help-btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-left: 30px;
+}
+
+.help-btn-cell {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.help-btn-cell .help-option-desc {
+  color: var(--text);
 }
 
 /* ── Content ── */
@@ -300,8 +318,21 @@ body {
   gap: 10px;
 }
 
+/* Equal-height wrapper for the 3 main cards */
+.cards-main {
+  display: grid;
+  grid-template-rows: repeat(3, 160px);
+  gap: 10px;
+}
+
+body.dev-active .cards-main {
+  grid-template-rows: repeat(3, auto);
+}
+
 /* ── Cards ── */
 .card {
+  min-width: 0; /* prevent grid item from expanding beyond column width */
+  overflow: hidden;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -397,6 +428,7 @@ body {
   min-height: 56px;
   max-height: 140px;
   overflow-y: auto;
+  overflow-x: auto;
   padding: 6px;
   margin-bottom: 10px;
 }
@@ -410,6 +442,7 @@ body {
   font-size: 11px;
   color: var(--text);
   border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 .click-item:last-child { border-bottom: none; }
 
@@ -576,6 +609,7 @@ body {
   border-radius: 6px;
   max-height: 150px;
   overflow-y: auto;
+  overflow-x: auto;
   padding: 6px;
   font-size: 10px;
   font-family: monospace;
@@ -586,6 +620,7 @@ body {
   padding: 2px 4px;
   border-bottom: 1px solid var(--border);
   color: var(--text-muted);
+  white-space: nowrap;
 }
 .log-entry:last-child { border-bottom: none; }
 .log-entry .time { color: var(--text-dim); margin-right: 6px; }
@@ -608,3 +643,12 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   white-space: normal;
 }
+
+/* ── Caution card ── */
+.caution-card { border-color: #e6a817; }
+.caution-card .section-title { color: #e6a817; }
+.caution-desc { font-size: 12px; color: var(--text); line-height: 1.5; }
+
+/* Theme-based caution image: dark mode = caution.png, light mode = caution_org.png */
+.caution-card img { content: url('caution.png'); }
+body.light .caution-card img { content: url('caution_org.png'); }

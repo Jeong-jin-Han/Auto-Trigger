@@ -227,12 +227,19 @@ if (window.__autoClickInjected) {
         hoverX = pr.left + pr.width  / 2;
         hoverY = pr.top  + pr.height * 0.4;
       }
-      await new Promise((resolve) => {
+      const resp = await new Promise((resolve) => {
         chrome.runtime.sendMessage(
           { type: 'DEBUGGER_CLICK', x: cx, y: cy, hoverX, hoverY },
           resolve
         );
       });
+      // Fallback to synthetic click if debugger was cancelled by user
+      if (resp?.fallback) {
+        const opts = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy };
+        el.dispatchEvent(new MouseEvent('mousedown', opts));
+        el.dispatchEvent(new MouseEvent('mouseup', opts));
+        el.click();
+      }
 
       showClickBadge(cx, cy, '▶');
       chrome.runtime.sendMessage({ type: 'CLICK_PERFORMED', method, source, step, total });

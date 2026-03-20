@@ -170,6 +170,7 @@ devBtn.addEventListener('click', () => {
   devBtn.classList.toggle('dev-on', !isVisible);
   devBtn.classList.toggle('dev-off', isVisible);
   devBtn.dataset.tooltip = isVisible ? 'Show dev log' : 'Hide dev log';
+  document.body.classList.toggle('dev-active', !isVisible);
 });
 
 // ── Inject content script ─────────────────────────────────────────────────────
@@ -388,6 +389,24 @@ function addLog(msg) {
   eventLog.prepend(entry);
   while (eventLog.children.length > 50) eventLog.removeChild(eventLog.lastChild);
 }
+
+// ── URL change during recording → reload page and reset ───────────────────────
+
+// Poll active tab URL — reload if URL changes during recording
+let watchedUrl = null;
+setInterval(() => {
+  if (recordState !== 'recording') return;
+  chrome.runtime.sendMessage({ type: 'GET_ACTIVE_TAB' }, (res) => {
+    const url = res?.tab?.url;
+    if (!url) return;
+    if (watchedUrl === null) { watchedUrl = url; return; }
+    if (url !== watchedUrl) {
+      addLog(`URL changed: ${url}`);
+      watchedUrl = null;
+      reloadBtn.click();
+    }
+  });
+}, 1000);
 
 // ── On load ───────────────────────────────────────────────────────────────────
 ensureContentScript();

@@ -39,6 +39,7 @@ chrome.debugger.onDetach.addListener((source) => {
   if (source.tabId === debugTabId) debugTabId = null;
 });
 
+
 // ─── Message Listener ─────────────────────────────────────────────────────
 
 // Handle messages from content script and side panel
@@ -123,10 +124,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'DEBUGGER_CLICK') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs[0]) { sendResponse({ success: false }); return; }
+      if (!tabs[0]) { sendResponse({ success: false, fallback: true }); return; }
       debuggerClick(tabs[0].id, message.x, message.y, message.hoverX ?? message.x, message.hoverY ?? message.y)
         .then(() => sendResponse({ success: true }))
-        .catch((err) => sendResponse({ success: false, error: err.message }));
+        .catch(() => sendResponse({ success: false, fallback: true }));
     });
     return true; // keep channel open for async sendResponse
   }
