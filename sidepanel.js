@@ -396,7 +396,7 @@ replayBtn.addEventListener('click', async () => {
     activeTabId = tabId;
     replayingTabs.add(tabId);
     persistState();
-    chrome.runtime.sendMessage({ type: 'REPLAY_CLICKS', pattern: recordedClicks, repeat, delayMs, tabId });
+    chrome.runtime.sendMessage({ type: 'REPLAY_CLICKS', pattern: recordedClicks, repeat, delayMs, tabId, soundEnabled, soundVolume });
   });
   setReplayUI(true);
   setStatus('running', `Repeating ${repeat}x...`);

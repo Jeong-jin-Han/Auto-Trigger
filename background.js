@@ -37,6 +37,7 @@ chrome.debugger.onDetach.addListener((source) => {
   if (source.tabId === debugTabId) debugTabId = null;
 });
 
+
 // ─── Storage helper ────────────────────────────────────────────────────────
 
 // Read autoTriggerState, apply updater, write back. No-op if data is missing.
@@ -70,6 +71,38 @@ function forwardToActiveTab(payload) {
     if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, payload);
   });
 }
+
+// ─── Offscreen document ────────────────────────────────────────────────────
+
+// Plays beep.wav via an offscreen document (has DOM; immune to autoplay restrictions).
+// Uses BroadcastChannel instead of chrome.runtime.sendMessage to avoid
+// known message-routing gaps between service workers and offscreen documents.
+
+let _offscreenCreating = null;
+
+async function playAlertViaOffscreen(volume) {
+  console.log('[AutoTrigger] playAlertViaOffscreen, volume:', volume);
+  if (_offscreenCreating) {
+    await _offscreenCreating;
+  } else {
+    _offscreenCreating = chrome.offscreen.createDocument({
+      url: 'offscreen.html',
+      reasons: ['AUDIO_PLAYBACK'],
+      justification: 'Play beep alert when a watched video ends'
+    }).catch((e) => {
+      // "Only a single offscreen document" = already exists — that's fine
+      if (!e.message?.includes('single')) console.error('[AutoTrigger] offscreen create failed:', e);
+    }).finally(() => { _offscreenCreating = null; });
+    await _offscreenCreating;
+  }
+  // BroadcastChannel works reliably between service worker and offscreen document
+  const bc = new BroadcastChannel('auto_trigger_audio');
+  bc.postMessage({ volume });
+  bc.close();
+  console.log('[AutoTrigger] BroadcastChannel message sent');
+}
+
+// ─── Message Listener ─────────────────────────────────────────────────────
 
 // Handle messages from content script and side panel
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -114,7 +147,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.type === 'REPLAY_CLICKS') {
-    forwardToActiveTab({ type: 'REPLAY_CLICKS', pattern: message.pattern, repeat: message.repeat, delayMs: message.delayMs, tabId: message.tabId });
+    forwardToActiveTab({ type: 'REPLAY_CLICKS', pattern: message.pattern, repeat: message.repeat, delayMs: message.delayMs, tabId: message.tabId, soundEnabled: message.soundEnabled, soundVolume: message.soundVolume });
   }
 
   if (message.type === 'DEBUGGER_CLICK') {
@@ -149,6 +182,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       data.replayingTabs.splice(idx, 1);
       return true;
     });
+  }
+
+  // Play alert via offscreen document (has DOM, immune to page CSP and autoplay restrictions)
+  if (message.type === 'PLAY_ALERT') {
+    console.log('[AutoTrigger] PLAY_ALERT received from content script');
+    playAlertViaOffscreen(message.volume ?? 0.7).catch((e) => console.error('[AutoTrigger] playAlert error:', e));
   }
 
   // CLICK_RECORDED, CLICK_PERFORMED, CLICK_FAILED are sent directly from the

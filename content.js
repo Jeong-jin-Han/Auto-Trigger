@@ -114,21 +114,9 @@ if (window.__autoClickInjected) {
 
   function playAlertInPage() {
     if (!autoSoundEnabled) return;
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
-      gain.gain.setValueAtTime(autoSoundVolume, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.4);
-    } catch (_) {}
+    // Content scripts run in an isolated world — AudioContext stays suspended there.
+    // Ask background to inject the sound into the main page world via executeScript.
+    chrome.runtime.sendMessage({ type: 'PLAY_ALERT', tabId: autoClickTabId, volume: autoSoundVolume });
   }
 
   function startAutoDetection(selector, pattern, tabId, soundEnabled, soundVolume) {
@@ -226,6 +214,7 @@ if (window.__autoClickInjected) {
       isReplaying = false;
       chrome.runtime.sendMessage({ type: 'DEBUGGER_DETACH' });
       chrome.runtime.sendMessage({ type: 'REPLAY_DONE', repeat, tabId: autoClickTabId });
+      playAlertInPage();
     }
   }
 
@@ -257,13 +246,19 @@ if (window.__autoClickInjected) {
         hoverX = pr.left + pr.width  / 2;
         hoverY = pr.top  + pr.height * 0.4;
       }
-      const resp = await new Promise((resolve) => {
-        chrome.runtime.sendMessage(
-          { type: 'DEBUGGER_CLICK', x: cx, y: cy, hoverX, hoverY, tabId: autoClickTabId },
-          resolve
-        );
-      });
-      // Fallback to synthetic click if debugger was cancelled by user
+      // Race DEBUGGER_CLICK against a 3-second timeout.
+      // If the service worker is killed mid-click (no open extension pages to keep it alive),
+      // sendResponse is never called and the Promise would hang forever without this timeout.
+      const resp = await Promise.race([
+        new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            { type: 'DEBUGGER_CLICK', x: cx, y: cy, hoverX, hoverY, tabId: autoClickTabId },
+            resolve
+          );
+        }),
+        new Promise((resolve) => setTimeout(() => resolve({ fallback: true }), 3000))
+      ]);
+      // Fallback: debugger cancelled, timed out, or service worker unavailable
       if (resp?.fallback) {
         const opts = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy };
         el.dispatchEvent(new MouseEvent('mousedown', opts));
@@ -325,7 +320,9 @@ if (window.__autoClickInjected) {
         break;
 
       case 'REPLAY_CLICKS':
-        autoClickTabId = message.tabId || null;
+        autoClickTabId    = message.tabId || null;
+        autoSoundEnabled  = message.soundEnabled ?? autoSoundEnabled;
+        autoSoundVolume   = message.soundVolume  ?? autoSoundVolume;
         replayClicks(message.pattern, message.repeat || 1, 'manual', message.delayMs);
         break;
 

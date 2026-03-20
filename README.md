@@ -40,8 +40,9 @@ Repetitive clicking is wasted time. Auto Trigger records any sequence of clicks 
 | **Auto Trigger** | Fires your pattern automatically when a video ends |
 | **YouTube support** | Works on YouTube, Shorts, and most HTML5 video sites — not livestreams |
 | **Per-tab recording** | Each browser tab keeps its own independent click pattern |
-| **Sound alert** | Audio notification when a task completes, with volume control |
+| **Sound alert** | Audio notification when a task completes or video ends — plays even with the panel closed |
 | **Trusted clicks** | Uses Chrome DevTools Protocol to simulate real mouse input (`isTrusted: true`) |
+| **Background operation** | Auto Trigger and Macro continue working after closing the side panel |
 | **Persistent state** | All settings survive panel close and browser restart |
 | **Auto reset** | Automatically resets if the page reloads or URL changes during recording |
 
@@ -80,7 +81,7 @@ To run locally:
 | Click detection | Content script + `MutationObserver` |
 | Click replay | Chrome DevTools Protocol (`Input.dispatchMouseEvent`) |
 | Video detection | `ended` event + `timeupdate` fallback for YouTube |
-| Sound | Web Audio API (`AudioContext`) |
+| Sound | Offscreen document + `HTMLAudioElement` (plays even when panel is closed) |
 | Storage | `chrome.storage.local` (persists across panel close/reopen) |
 
 ---

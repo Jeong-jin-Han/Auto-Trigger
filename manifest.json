@@ -9,7 +9,8 @@
     "sidePanel",
     "tabs",
     "debugger",
-    "storage"
+    "storage",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -28,6 +29,9 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
+  "web_accessible_resources": [
+    { "resources": ["beep.wav"], "matches": ["<all_urls>"] }
+  ],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
