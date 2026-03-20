@@ -27,7 +27,7 @@ if (window.__autoClickInjected) {
     };
 
     recordedClicks.push(clickData);
-    chrome.runtime.sendMessage({ type: 'CLICK_RECORDED', click: clickData });
+    chrome.runtime.sendMessage({ type: 'CLICK_RECORDED', click: clickData, tabId: autoClickTabId });
 
     // Visual feedback
     showClickBadge(event.clientX, event.clientY, recordedClicks.length);
@@ -108,15 +108,19 @@ if (window.__autoClickInjected) {
 
   let autoClickSelector = '';
   let autoClickPattern  = [];
+  let autoClickTabId    = null;
 
-  function startAutoDetection(selector, pattern) {
+  function startAutoDetection(selector, pattern, tabId) {
     autoClickSelector = selector || '';
     autoClickPattern  = pattern  || [];
+    autoClickTabId    = tabId    || null;
     isAutoDetecting = true;
     attachVideoListeners();
-    // Also watch for dynamically added videos
+    // Also watch for dynamically added videos (throttled to avoid scanning on every DOM change)
+    let _attachThrottle = null;
     videoObserver = new MutationObserver(() => {
-      attachVideoListeners();
+      if (_attachThrottle) return;
+      _attachThrottle = setTimeout(() => { _attachThrottle = null; attachVideoListeners(); }, 500);
     });
     videoObserver.observe(document.body, { childList: true, subtree: true });
   }
@@ -156,7 +160,7 @@ if (window.__autoClickInjected) {
     lastVideoEndedAt = now;
 
     // Notify side panel (for log display only)
-    chrome.runtime.sendMessage({ type: 'VIDEO_ENDED' });
+    chrome.runtime.sendMessage({ type: 'VIDEO_ENDED', tabId: autoClickTabId });
 
     // Perform the click right here in the page
     if (autoClickSelector) {
@@ -195,7 +199,7 @@ if (window.__autoClickInjected) {
     if (source !== 'auto') {
       isReplaying = false;
       chrome.runtime.sendMessage({ type: 'DEBUGGER_DETACH' });
-      chrome.runtime.sendMessage({ type: 'REPLAY_DONE', repeat });
+      chrome.runtime.sendMessage({ type: 'REPLAY_DONE', repeat, tabId: autoClickTabId });
     }
   }
 
@@ -229,7 +233,7 @@ if (window.__autoClickInjected) {
       }
       const resp = await new Promise((resolve) => {
         chrome.runtime.sendMessage(
-          { type: 'DEBUGGER_CLICK', x: cx, y: cy, hoverX, hoverY },
+          { type: 'DEBUGGER_CLICK', x: cx, y: cy, hoverX, hoverY, tabId: autoClickTabId },
           resolve
         );
       });
@@ -242,9 +246,9 @@ if (window.__autoClickInjected) {
       }
 
       showClickBadge(cx, cy, '▶');
-      chrome.runtime.sendMessage({ type: 'CLICK_PERFORMED', method, source, step, total });
+      chrome.runtime.sendMessage({ type: 'CLICK_PERFORMED', method, source, step, total, tabId: autoClickTabId });
     } else {
-      chrome.runtime.sendMessage({ type: 'CLICK_FAILED', selector: click.selector });
+      chrome.runtime.sendMessage({ type: 'CLICK_FAILED', selector: click.selector, tabId: autoClickTabId });
     }
   }
 
@@ -264,11 +268,12 @@ if (window.__autoClickInjected) {
 
   // ─── Message Listener ─────────────────────────────────────────────────────
 
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     switch (message.type) {
       case 'START_RECORDING':
         isRecording = true;
         recordedClicks = [];
+        autoClickTabId = message.tabId || null;
         document.removeEventListener('click', onClickRecord, true); // prevent duplicates
         document.addEventListener('click', onClickRecord, true);
         break;
@@ -280,12 +285,13 @@ if (window.__autoClickInjected) {
 
       case 'RESUME_RECORDING':
         isRecording = true;
+        autoClickTabId = message.tabId || autoClickTabId;
         document.removeEventListener('click', onClickRecord, true); // prevent duplicates
         document.addEventListener('click', onClickRecord, true);
         break;
 
       case 'START_AUTO_DETECTION':
-        startAutoDetection(message.selector, message.pattern);
+        startAutoDetection(message.selector, message.pattern, message.tabId);
         break;
 
       case 'STOP_AUTO_DETECTION':
@@ -293,7 +299,12 @@ if (window.__autoClickInjected) {
         break;
 
       case 'REPLAY_CLICKS':
+        autoClickTabId = message.tabId || null;
         replayClicks(message.pattern, message.repeat || 1, 'manual', message.delayMs);
+        break;
+
+      case 'GET_RUNNING_STATE':
+        sendResponse({ isReplaying, isAutoDetecting });
         break;
     }
   });

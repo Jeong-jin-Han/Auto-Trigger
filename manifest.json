@@ -8,7 +8,8 @@
     "scripting",
     "sidePanel",
     "tabs",
-    "debugger"
+    "debugger",
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>"

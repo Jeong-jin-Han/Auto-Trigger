@@ -653,6 +653,9 @@ body.dev-active .cards-main {
 .caution-card { border-color: #e6a817; }
 .caution-card .section-title { color: #e6a817; }
 .caution-desc { font-size: 12px; color: var(--text); line-height: 1.5; }
+.caution-list { display: flex; flex-direction: column; gap: 5px; }
+.caution-item { font-size: 12px; color: var(--text); line-height: 1.4; padding-left: 12px; position: relative; }
+.caution-item::before { content: '•'; position: absolute; left: 0; color: #e6a817; }
 
 /* Theme-based caution image: dark mode = caution.png, light mode = caution_org.png */
 .caution-card img { content: url('caution.png'); }

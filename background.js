@@ -1,7 +1,5 @@
-// Open side panel when extension icon is clicked
-chrome.action.onClicked.addListener((tab) => {
-  chrome.sidePanel.open({ tabId: tab.id });
-});
+// Toggle side panel open/close when extension icon is clicked
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
 // ─── Chrome Debugger API ───────────────────────────────────────────────────
 
@@ -39,11 +37,42 @@ chrome.debugger.onDetach.addListener((source) => {
   if (source.tabId === debugTabId) debugTabId = null;
 });
 
+// ─── Storage helper ────────────────────────────────────────────────────────
+
+// Read autoTriggerState, apply updater, write back. No-op if data is missing.
+function updateStorage(updater) {
+  chrome.storage.local.get('autoTriggerState', (result) => {
+    const data = result.autoTriggerState;
+    if (!data) return;
+    if (updater(data)) chrome.storage.local.set({ autoTriggerState: data });
+  });
+}
+
+// Clean up all tab-specific data when a tab is closed
+chrome.tabs.onRemoved.addListener((tabId) => {
+  updateStorage((data) => {
+    let changed = false;
+    if (data.tabRecordings?.[tabId])         { delete data.tabRecordings[tabId]; changed = true; }
+    if (data.tabSettings?.[tabId])           { delete data.tabSettings[tabId];   changed = true; }
+    const rIdx = data.replayingTabs?.indexOf(tabId) ?? -1;
+    if (rIdx !== -1)                         { data.replayingTabs.splice(rIdx, 1); changed = true; }
+    const aIdx = data.autoTabs?.indexOf(tabId) ?? -1;
+    if (aIdx !== -1)                         { data.autoTabs.splice(aIdx, 1);     changed = true; }
+    return changed;
+  });
+});
 
 // ─── Message Listener ─────────────────────────────────────────────────────
 
+// Forward a message payload to the active tab's content script
+function forwardToActiveTab(payload) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, payload);
+  });
+}
+
 // Handle messages from content script and side panel
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // VIDEO_ENDED is sent directly from content script to all extension pages — no forwarding needed.
 
   if (message.type === 'RELOAD_TAB') {
@@ -67,68 +96,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'START_RECORDING') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'START_RECORDING' });
-      }
+      if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'START_RECORDING', tabId: message.tabId || tabs[0].id });
     });
   }
 
-  if (message.type === 'STOP_RECORDING') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'STOP_RECORDING' });
-      }
-    });
-  }
+  if (message.type === 'STOP_RECORDING')       forwardToActiveTab({ type: 'STOP_RECORDING' });
+  if (message.type === 'STOP_AUTO_DETECTION')  forwardToActiveTab({ type: 'STOP_AUTO_DETECTION' });
 
   if (message.type === 'RESUME_RECORDING') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'RESUME_RECORDING' });
-      }
+      if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { type: 'RESUME_RECORDING', tabId: message.tabId || tabs[0].id });
     });
   }
 
   if (message.type === 'START_AUTO_DETECTION') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, {
-          type: 'START_AUTO_DETECTION',
-          selector: message.selector,
-          pattern: message.pattern
-        });
-      }
-    });
-  }
-
-  if (message.type === 'STOP_AUTO_DETECTION') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'STOP_AUTO_DETECTION' });
-      }
-    });
+    forwardToActiveTab({ type: 'START_AUTO_DETECTION', selector: message.selector, pattern: message.pattern, tabId: message.tabId });
   }
 
   if (message.type === 'REPLAY_CLICKS') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, {
-          type: 'REPLAY_CLICKS',
-          pattern: message.pattern,
-          repeat: message.repeat,
-          delayMs: message.delayMs
-        });
-      }
-    });
+    forwardToActiveTab({ type: 'REPLAY_CLICKS', pattern: message.pattern, repeat: message.repeat, delayMs: message.delayMs, tabId: message.tabId });
   }
 
   if (message.type === 'DEBUGGER_CLICK') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs[0]) { sendResponse({ success: false, fallback: true }); return; }
-      debuggerClick(tabs[0].id, message.x, message.y, message.hoverX ?? message.x, message.hoverY ?? message.y)
+    if (message.tabId) {
+      debuggerClick(message.tabId, message.x, message.y, message.hoverX ?? message.x, message.hoverY ?? message.y)
         .then(() => sendResponse({ success: true }))
         .catch(() => sendResponse({ success: false, fallback: true }));
-    });
+    } else {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0]) { sendResponse({ success: false, fallback: true }); return; }
+        debuggerClick(tabs[0].id, message.x, message.y, message.hoverX ?? message.x, message.hoverY ?? message.y)
+          .then(() => sendResponse({ success: true }))
+          .catch(() => sendResponse({ success: false, fallback: true }));
+      });
+    }
     return true; // keep channel open for async sendResponse
   }
 
@@ -137,6 +138,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.debugger.detach({ tabId: debugTabId }).catch(() => {});
       debugTabId = null;
     }
+  }
+
+  // When replay finishes, remove the tab from replayingTabs in storage so
+  // the panel doesn't see a stale "running" state when it reopens.
+  if (message.type === 'REPLAY_DONE' && message.tabId) {
+    updateStorage((data) => {
+      const idx = data.replayingTabs?.indexOf(message.tabId) ?? -1;
+      if (idx === -1) return false;
+      data.replayingTabs.splice(idx, 1);
+      return true;
+    });
   }
 
   // CLICK_RECORDED, CLICK_PERFORMED, CLICK_FAILED are sent directly from the

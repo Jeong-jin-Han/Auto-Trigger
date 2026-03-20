@@ -19,6 +19,19 @@ Repetitive clicking is wasted time. Auto Trigger records any sequence of clicks 
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="tmp/images/store/screenshot2.png" width="48%" />
+  <img src="tmp/images/store/screenshot3.png" width="48%" />
+</p>
+<p align="center">
+  <img src="tmp/images/store/screenshot4.png" width="48%" />
+  <img src="tmp/images/store/screenshot5.png" width="48%" />
+</p>
+
+---
+
 ## Features
 
 | | |
@@ -26,8 +39,10 @@ Repetitive clicking is wasted time. Auto Trigger records any sequence of clicks 
 | **Macro** | Repeat your recorded pattern N times with a configurable delay |
 | **Auto Trigger** | Fires your pattern automatically when a video ends |
 | **YouTube support** | Works on YouTube, Shorts, and most HTML5 video sites — not livestreams |
+| **Per-tab recording** | Each browser tab keeps its own independent click pattern |
 | **Sound alert** | Audio notification when a task completes, with volume control |
 | **Trusted clicks** | Uses Chrome DevTools Protocol to simulate real mouse input (`isTrusted: true`) |
+| **Persistent state** | All settings survive panel close and browser restart |
 | **Auto reset** | Automatically resets if the page reloads or URL changes during recording |
 
 ---
@@ -45,6 +60,17 @@ Click **Start Auto Trigger**. The extension watches the current tab for a video 
 
 ---
 
+## Installation
+
+> **Chrome Web Store** — search "Auto Trigger" or use the badge above.
+
+To run locally:
+
+1. Clone this repo
+2. Go to `chrome://extensions` → Enable **Developer mode** → **Load unpacked** → select the repo folder
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -55,10 +81,10 @@ Click **Start Auto Trigger**. The extension watches the current tab for a video 
 | Click replay | Chrome DevTools Protocol (`Input.dispatchMouseEvent`) |
 | Video detection | `ended` event + `timeupdate` fallback for YouTube |
 | Sound | Web Audio API (`AudioContext`) |
-| Storage | In-memory (session only) |
+| Storage | `chrome.storage.local` (persists across panel close/reopen) |
 
 ---
 
 ## Privacy
 
-No data is collected, stored, or transmitted. Recorded patterns live in memory only and are cleared when the extension closes.
+No data is collected, stored, or transmitted. Recorded patterns are saved locally in `chrome.storage.local` on your device only — no analytics, no tracking, no third-party data sharing.
