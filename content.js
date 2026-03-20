@@ -392,6 +392,11 @@ if (window.__autoClickInjected) {
         replayClicks(message.pattern, message.repeat || 1, 'manual', message.delayMs);
         break;
 
+      case 'UPDATE_SOUND':
+        autoSoundEnabled = message.soundEnabled ?? autoSoundEnabled;
+        autoSoundVolume  = message.soundVolume  ?? autoSoundVolume;
+        break;
+
       case 'GET_RUNNING_STATE':
         sendResponse({ isReplaying, isAutoDetecting });
         break;

@@ -95,6 +95,7 @@ soundBtn.addEventListener('click', () => {
   soundBtn.classList.toggle('sound-off', !soundEnabled);
   saveTabRecording(viewedTabId);
   persistState();
+  notifyContentScriptSound();
 });
 
 function playAlert() {
@@ -114,6 +115,12 @@ function playAlert() {
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.4);
   } catch (_) {}
+}
+
+function notifyContentScriptSound() {
+  const tabId = viewedTabId;
+  if (!tabId) return;
+  chrome.tabs.sendMessage(tabId, { type: 'UPDATE_SOUND', soundEnabled, soundVolume }).catch(() => {});
 }
 
 // ── Volume popup (show on hover, hide after 5s) ───────────────────────────────
@@ -155,6 +162,7 @@ volumeSlider.addEventListener('input', () => {
   volumeVal.textContent = `${v}%`;
   saveTabRecording(viewedTabId);
   persistStateLazy();
+  notifyContentScriptSound();
 });
 
 // ── Delay / repeat inputs ─────────────────────────────────────────────────────
