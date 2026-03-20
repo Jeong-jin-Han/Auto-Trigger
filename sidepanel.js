@@ -495,7 +495,6 @@ chrome.runtime.onMessage.addListener((message) => {
     autoStatus.textContent = 'Video ended — clicking…';
     autoStatus.className = 'status-bar event';
     addLog('Video ended');
-    playAlert();
     setTimeout(() => {
       if (autoTabs.has(viewedTabId)) {
         autoStatus.textContent = 'Listening for video end…';
@@ -528,7 +527,6 @@ chrome.runtime.onMessage.addListener((message) => {
     persistState();
     addLog(`Replay complete (${message.repeat}x)`);
     showResult(macroResult, `Replay complete — ${message.repeat} time(s)`, 'success');
-    playAlert();
     setReplayUI(false);
     setStatus('ready', 'Pattern ready');
     updateActionButtons();

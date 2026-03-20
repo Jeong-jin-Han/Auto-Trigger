@@ -103,10 +103,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message.type === 'INJECT_CONTENT_SCRIPT') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        const tabId = tabs[0].id;
-        // Clear the injection guard so the script fully re-initializes after
-        // an extension reload (old orphaned script would otherwise block it)
+      if (!tabs[0]) { sendResponse({ success: false }); return; }
+      const tabId = tabs[0].id;
+      // Ping the existing content script first — only re-inject if it is dead
+      // (e.g. after extension reload). Re-injecting a live script would create
+      // duplicate event listeners causing double-recorded clicks.
+      chrome.tabs.sendMessage(tabId, { type: 'GET_RUNNING_STATE' }, (state) => {
+        if (!chrome.runtime.lastError && state) {
+          sendResponse({ success: true }); // already alive, nothing to do
+          return;
+        }
+        // Script is dead — clear guard and inject fresh
         chrome.scripting.executeScript({
           target: { tabId },
           func: () => { window.__autoClickInjected = false; }
@@ -117,7 +124,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           }).then(() => sendResponse({ success: true }))
             .catch((err) => sendResponse({ success: false, error: err.message }));
         });
-      }
+      });
     });
     return true;
   }
